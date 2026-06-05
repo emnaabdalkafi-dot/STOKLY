@@ -1,3 +1,24 @@
+.loadingDots::after {
+  content: ' .';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+@keyframes dots {
+
+  0%,
+  30% {
+    content: '.';
+  }
+
+  60% {
+    content: '..';
+  }
+
+  70%,
+  100% {
+    content: '...';
+  }
+}
+
 .dashboardMain {
   height: 90vh;
   padding: 0.5rem;
@@ -8,76 +29,10 @@
 
 :global(.dark-mode) .dashboardMain {
   background: #0f172a;
+  color:white;
 }
 
-.dashboardPanel {
-  border-radius: 5px;
-  background: #ffffff;
-  border: 1px solid #102a43;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 1.5rem;
-  width: 95%;
-  height: 100%;
-
-  margin: 0 auto;
-}
-
-:global(.dark-mode) .dashboardPanel {
-  background-color: #0f172a;
-  border: 1px solid #ffffff;
-  color: #ffffff;
-}
-
-.authLogoImage {
-  width: 100px;
-  height: 100px;
-  border-radius: 5px;
-  object-fit: cover;
-  border: 1px solid #102a43;
-}
-
-.profileHeader {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid #e2e8f0;
-  color: #102a43;
-}
-
-.profileInfo h2 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: #102a43;
-}
-
-:global(.dark-mode) .profileInfo h2 {
-  color: #ffffff;
-}
-
-.profileInfo p {
-  margin: 0.25rem 0 0;
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-.editButton {
-  margin-top: 1rem;
-  background: #ffffff;
-  color: #102a43;
-  border: 1px solid #102a43;
-  border-radius: 5px;
-  padding: 0.5rem 1rem;
-  font-size: 0.8rem;
-  cursor: pointer;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
+/* Modal styles */
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -90,27 +45,45 @@
   justify-content: center;
   z-index: 999;
 }
-
-.modalContent {
-  background: linear-gradient(135deg, #EFF9FF 0%, #FFFBF6 100%);
+.modalPage {
+   background: linear-gradient(135deg, #EFF9FF 0%, #FFFBF6 100%);
   border: 1px solid #0000001e;
   padding: 1.5rem;
-  border-radius: 15px;
+  border-radius: 7px;
   width: 450px;
   max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
 }
-
-:global(.dark-mode) .modalContent {
+:global(.dark-mode) .modalPage {
   background: #111827;
   color: white;
 }
+.modalContent {
+  
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  scrollbar-width: none;
+  padding: 1rem 0;
+}
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
 
-.dashboardMenuToggle {
-  position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+/*modal title*/
+.modalTitle{
+font-size: 1rem;
+color: #102a43;
+padding: 0;
+margin: 0;
+}
+:global(.dark-mode) .modalTitle {
+  color: white;
+}
+/*close button*/
+.closeBtn {
   max-width: unset;
   font-size: 1.2rem;
   padding: 0;
@@ -120,13 +93,61 @@
   cursor: pointer;
 }
 
-:global(.dark-mode) .dashboardMenuToggle {
+:global(.dark-mode) .closeBtn {
   color: white;
 }
-
+/*form*/
 .detailsForm {
   display: grid;
   gap: 0.5rem;
+}
+/* Avatar upload */
+.avatarUpload {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.avatarUpload img , .avatarUpload div {
+  width: 100px;
+  height: 100px;
+  border-radius: 5px;
+  object-fit: cover;
+  border: 1px solid #102a43;
+  background-color: #102a43;
+  color: #ffffff;
+  text-align: center;
+  line-height: 100px;
+  font-weight: 600;
+  font-size: 4rem;
+  cursor: pointer;
+}
+.avatarContainer {
+  position: relative;
+}
+
+.fileInputHidden {
+  display: none;
+}
+
+
+/*input group*/
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.detailsForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #D99A37;
+  text-align: left;
 }
 
 .InputGroup {
@@ -152,21 +173,6 @@
     text-shadow: 0.3px 0.3px 0 #102a43;
 }
 
-.detailsGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.detailsForm label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-  color: #D99A37;
-  text-align: left;
-}
-
 .InputGroup input {
   border: none;
   background: transparent;
@@ -174,7 +180,29 @@
   outline: none;
   color: #102a43;
 }
-
+:global(.dark-mode) .InputGroup {
+  background: #111827;
+  border: 1px solid #ffffff1e;
+  color: #ffffff9b;
+}
+:global(.dark-mode) .InputGroup input {
+  color: #ffffff;
+}
+:global(.dark-mode) .InputGroup i {
+  color: #ffffff;
+}
+/*mot de passe*/
+.motDePasseSection {
+  margin-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 1rem;
+}
+.motDePasseInputs{
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* Submit button */
 .Submit {
   width: 100%;
   background: #102a43;
@@ -194,71 +222,112 @@
   box-shadow: 0 1px 1px rgba(16, 42, 67, 0.16);
 }
 
+:global(.dark-mode) .Submit {
+  background: #1e293b;
+  border: 1px solid #ffffff1e;
+  color: #ffffff9b;
+}
+/*ereur*/
+
 .fieldError {
   color: #bf1650;
   font-size: 0.7rem;
   margin-top: 0.25rem;
 }
 
-.avatarUpload {
+/*dashboardPanel*/
+
+.dashboardPanel {
+  border-radius: 5px;
+  background: #ffffff;
+  border: 1px solid #102a43;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: 1rem;
+  padding: 1.5rem;
+  width: 95%;
+  height: 100%;
+  margin: 0 auto;
 }
 
-.avatarUpload img {
+:global(.dark-mode) .dashboardPanel {
+  background: #1E293B;
+  border-color: #64748b;
+  color: #ffffff;
+}
+/*profile header*/
+
+.profileHeader {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #102a43;
+}
+.authLogoImage {
   width: 100px;
   height: 100px;
   border-radius: 5px;
   object-fit: cover;
   border: 1px solid #102a43;
-  cursor: pointer;
+  background-color: #102a43;
+  color: #ffffff;
+  text-align: center;
+  line-height: 100px;
+  font-weight: 600;
+  font-size: 4rem;
 }
-.fileInputHidden {
-  display: none;
-}
-.dashboardLoading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  font-size: 0.9rem;
+
+.profileInfo h2 {
+  margin: 0;
+  font-size: 1.25rem;
   color: #102a43;
 }
 
-.loadingDots::after {
-  content: ' .';
-  animation: dots 1.5s steps(4, end) infinite;
+:global(.dark-mode) .profileInfo h2 {
+  color: #ffffff;
 }
-@keyframes dots {
 
-  0%,
-  30% {
-    content: '.';
-  }
-
-  60% {
-    content: '..';
-  }
-
-  70%,
-  100% {
-    content: '...';
-  }
+.profileInfo p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
 }
+
+/* Edit button */
+
+.editButton {
+  margin-top: 1rem;
+  background: #ffffff;
+  color: #102a43;
+  border: 1px solid #102a43;
+  border-radius: 5px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+:global(.dark-mode) .editButton {
+  background: #111827;
+  border: 1px solid #ffffff1e;
+  color: #ffffff9b;
+}
+
+/*parametre*/
+
 .ParametreTitle{
   color: #102a43;
   font-size: 1rem;
 }
+:global(.dark-mode) .ParametreTitle {
+  color: #ffffff;
+}
 .ParametreBody{
   margin-left: -10px;
-}
-.description{
-  color: #64748b;
-  font-weight: 200;
-  font-size: 0.7rem;
 }
 
 .inputSymbol {
@@ -286,7 +355,7 @@
 }
 
 .miniOkBtn {
-    background: #1e3a8a;
+    background: #102a43;
     color: white;
     border: none;
     padding: 2px 10px;
@@ -298,7 +367,20 @@
 }
 
 .miniOkBtn:hover {
-    background: #1e40af;
+      transform: translateY(2px);
+  box-shadow: 0 1px 1px rgba(16, 42, 67, 0.16);
+}
+
+:global(.dark-mode) .miniOkBtn {
+  background: #1e293b;
+  border: 1px solid #ffffff1e;
+  color: #ffffff9b;
+}
+
+.description{
+  color: #64748b;
+  font-weight: 200;
+  font-size: 0.7rem;
 }
 
 @media (max-width: 800px) {

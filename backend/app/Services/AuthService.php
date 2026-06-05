@@ -15,9 +15,6 @@ class AuthService
         $this->userRepository = $userRepository;
     }
 
-    /**
-     * Register a new user
-     */
     public function register($validated)
     {
         try {
@@ -37,9 +34,6 @@ class AuthService
         }
     }
 
-    /**
-     * Login user
-     */
     public function login($validated)
     {
         try {
@@ -52,11 +46,10 @@ class AuthService
                 ];
             }
 
-            // Check if user has admin role
             if ($user->role !== 'admin') {
                 return [
                     'success' => false,
-                    'message' => 'Accès refusé. Seuls les administrateurs peuvent se connecter.',
+                    'message' => 'Accès refusé',
                 ];
             }
 
@@ -79,11 +72,6 @@ class AuthService
         }
     }
 
-
-
-    /**
-     * Get current user
-     */
     public function getCurrentUser($user)
     {
         try {
@@ -100,9 +88,6 @@ class AuthService
         }
     }
 
-    /**
-     * Logout user
-     */
     public function logout($user)
     {
         try {

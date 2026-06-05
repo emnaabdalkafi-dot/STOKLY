@@ -90,6 +90,7 @@
   padding: 15px;
   display: flex;
   flex-direction: column;
+  max-height: 250px;
 }
 
 :global(.dark-mode) .panel {
@@ -344,7 +345,8 @@
 
 /* TABLES */
 .tableWrap {
-  overflow-x: auto;
+  max-height: 100px;
+  overflow-y: auto;
 }
 
 table {
@@ -445,4 +447,26 @@ th {
 .statusGray {
   background: #f1f5f9;
   color: #475569;
+}
+.userCard{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.userCard img{
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.userCard div{
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: #1e293b;
 }

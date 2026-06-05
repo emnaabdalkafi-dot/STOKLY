@@ -72,4 +72,32 @@ class AuthService {
       return {'success': false, 'message': 'La connexion Internet est interrompue. Veuillez vérifier votre réseau.'};
     }
   }
+
+  Future<Map<String, dynamic>> resetPassword({
+    required String email,
+    required String token,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/reset-password'),
+        headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
+        body: json.encode({
+          'email': email,
+          'token': token,
+          'password': password,
+          'password_confirmation': passwordConfirmation,
+        }),
+      );
+
+      final data = json.decode(response.body);
+      return {
+        'success': response.statusCode == 200,
+        'message': data['message'] ?? 'Une erreur est survenue',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'La connexion Internet est interrompue. Veuillez vérifier votre réseau.'};
+    }
+  }
 }

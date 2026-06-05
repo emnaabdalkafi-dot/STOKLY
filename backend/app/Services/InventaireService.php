@@ -27,7 +27,12 @@ class InventaireService
     {
         $inventaire = DB::transaction(function () use ($data) {
             $inventaire = $this->repository->create(array_intersect_key($data, array_flip(['titre', 'date_debut', 'date_fin', 'site', 'statut', 'type_source', 'id_entrepot', 'remarque'])));
-
+            \App\Models\Notification::create([
+                        'type' => 'nouvel inventaire',
+                        'id_inventaire' => $inventaire->id_inventaire,
+                        'contenu' => "Nouvel inventaire assigné : {$inventaire->titre}",
+                        'statut' => 'non lu'
+                    ]);
             // Assign agents
             if (!empty($data['agents'])) {
                 foreach ($data['agents'] as $agentId) {
@@ -37,13 +42,8 @@ class InventaireService
                         'statut_participation' => 'inactif'
                     ]);
 
-                    \App\Models\Notification::create([
-                        'type' => 'nouvel inventaire',
-                        'id_inventaire' => $inventaire->id_inventaire,
-                        'id_user' => $agentId,
-                        'contenu' => "Nouvel inventaire assigné : {$inventaire->titre}",
-                        'statut' => 'non lu'
-                    ]);
+                    broadcast(new InventaireAssigned($inventaire, (int)$agentId));
+
                 }
             }
 
@@ -54,12 +54,6 @@ class InventaireService
             return $inventaire;
         });
 
-        // Fire assigned events outside transaction
-        if (!empty($data['agents'])) {
-            foreach ($data['agents'] as $agentId) {
-                broadcast(new InventaireAssigned($inventaire, (int)$agentId));
-            }
-        }
 
         return $inventaire;
     }
@@ -138,13 +132,6 @@ class InventaireService
                     ]);
 
                     if (!in_array($agentId, $existingAgents)) {
-                        \App\Models\Notification::create([
-                            'type' => 'nouvel inventaire',
-                            'id_inventaire' => $inventaire->id_inventaire,
-                            'id_user' => $agentId,
-                            'contenu' => "Nouvel inventaire assigné : {$inventaire->titre}",
-                            'statut' => 'non lu'
-                        ]);
                         $newAgentsToBroadcast[] = $agentId;
                     }
                 }
@@ -233,9 +220,13 @@ class InventaireService
         $totalComptee = \App\Models\Scan::where('id_ligne', $ligne->id_ligne)
             ->sum('quantite');
 
+        $ecart = ($totalComptee == 0 || $totalComptee == ($ligne->quantite_theorique ?? 0))
+            ? 0
+            : $totalComptee - ($ligne->quantite_theorique ?? 0);
+
         $ligne->update([
             'quantite_comptee' => $totalComptee,
-            'ecart' => $totalComptee - ($ligne->quantite_theorique ?? 0)
+            'ecart' => $ecart
         ]);
 
         broadcast(new ScanEnregistre($inventaireId, $article, $userId, $ligne->quantite_comptee, $ligne->ecart, $idEntrepot ?? $ligne->id_entrepot))->toOthers();
@@ -246,7 +237,7 @@ class InventaireService
     public function terminateInventaire($id, array $data)
     {
         $inventaire = Inventaire::with(['lignes.article', 'affectations.agent'])->findOrFail($id);
-        if ($inventaire->statut === 'termine') throw new \Exception('Inventaire déjà terminé.');
+        if ($inventaire->statut === 'cloture') throw new \Exception('Inventaire déjà cloturé.');
 
         return DB::transaction(function () use ($inventaire, $id, $data) {
             // 1. Sauvegarde (Backup) si demandé ou par défaut pour la sécurité
@@ -260,9 +251,12 @@ class InventaireService
                     $ligne = $this->repository->findLigne($ligneData['id_ligne']);
                     if ($ligne && $ligne->id_inventaire == $id) {
                         $count = $ligneData['quantite_comptee'];
+                        $ecart = ($count == 0 || $count == ($ligne->quantite_theorique ?? 0))
+                            ? 0
+                            : (float)$count - (float)($ligne->quantite_theorique ?? 0);
                         $ligne->update([
                             'quantite_comptee' => $count,
-                            'ecart' => (float)$count - (float)($ligne->quantite_theorique ?? 0)
+                            'ecart' => $ecart
                         ]);
                     }
                 }
@@ -293,32 +287,11 @@ class InventaireService
             $filePath = 'rapports/' . $fileName;
             Storage::disk('public')->put($filePath, $pdf->output());
 
-            // 5. Enregistrement du rapport en base
-            $this->repository->createRapport([
-                'id_inventaire' => $inventaire->id_inventaire,
-                'titre' => $inventaire->titre,
-                'site' => $inventaire->site,
-                'type_source' => $inventaire->type_source,
-                'date_debut' => $inventaire->date_debut,
-                'date_fin' => $inventaire->date_fin,
-                'fichier_path' => '/storage/' . $filePath,
-                'total_articles' => $summary['total_articles'],
-                'articles_comptes' => $inventaire->lignes->whereNotNull('quantite_comptee')->count(),
-                'ecarts_positifs' => $summary['ecart_positif_count'],
-                'ecarts_negatifs' => $summary['ecart_negatif_count'],
-                'sans_ecart_count' => $summary['sans_ecart_count'],
-                'ecart_positif_price' => $summary['ecart_positif_price'],
-                'ecart_negatif_price' => $summary['ecart_negatif_price'],
-                'correction_details' => $summaryData['corrections'],
-                'lignes_details' => $lignesDetails,
-                'agents_details' => $agentNames
+            // 5. Clôture et enregistrement du rapport
+            $inventaire->update([
+                'statut' => 'cloture',
+                'fichier_path' => '/storage/' . $filePath
             ]);
-
-            // 6. Nettoyage et clôture
-            $inventaire->update(['statut' => 'termine']);
-            $this->repository->deleteScans($id);
-            $this->repository->deleteLignes($id);
-            $this->repository->deleteAffectations($id);
 
             return '/storage/' . $filePath;
         });
@@ -369,20 +342,17 @@ class InventaireService
             $newQty = (float)$ligne->quantite_comptee;
 
             if ($ligne->id_entrepot) {
-                // Update specific warehouse
                 DB::table('ligne_entrepots')
                     ->where('id_article', $article->id_article)
                     ->where('id_entrepot', $ligne->id_entrepot)
                     ->update(['quantite' => $newQty]);
                 
-                // Recalculate total for article
                 $totalArticle = DB::table('ligne_entrepots')
                     ->where('id_article', $article->id_article)
                     ->sum('quantite');
                 
                 $article->update(['quantite_total' => $totalArticle]);
             } else {
-                // Update global total directly
                 $article->update(['quantite_total' => $newQty]);
             }
         }
@@ -408,10 +378,16 @@ class InventaireService
             $first = $group->first();
             $idArticle = $first->id_article;
             $articleScans = $scansByArticle->get($idArticle) ?? collect();
-            $agentsContrib = $articleScans->map(fn($s) => ($s->agent->nom ?? 'Agent') . ' (' . $s->total_scanee . ')')->unique()->implode(', ');
+            $agentsContrib = $articleScans
+                ->map(fn($s) => trim((($s->agent->nom ?? '') . ' ' . ($s->agent->prenom ?? '')) . ($s->agent->email ? ' <' . $s->agent->email . '>' : '')))
+                ->unique()
+                ->filter()
+                ->implode(', ');
 
             $totalTheorique = $group->sum('quantite_theorique');
             $totalComptee = $group->sum('quantite_comptee');
+            $entrepotNames = $group->map(fn($g) => $g->entrepot?->nom)->filter()->unique()->values();
+            $entrepotName = $entrepotNames->count() === 1 ? $entrepotNames->first() : null;
 
             return [
                 'nom' => $first->article->nom ?? '...',
@@ -419,20 +395,23 @@ class InventaireService
                 'prix' => $first->article->prix ?? 0,
                 'theorique' => $totalTheorique,
                 'comptee' => $totalComptee,
-                'ecart' => $totalComptee - $totalTheorique,
+                'ecart' => ($totalComptee == 0 || $totalComptee == $totalTheorique) ? 0 : $totalComptee - $totalTheorique,
+                'entrepot' => $entrepotName,
                 'agents_contrib' => $agentsContrib
             ];
         })->values();
 
         // Corrections
         $corrections = \App\Models\Correction::whereIn('id_ligne_inventaire', $inventaire->lignes->pluck('id_ligne'))
+            ->where('statut_validation', 'valide')
             ->with(['agent', 'ligne.article'])
             ->get()
             ->map(fn($c) => [
                 'article' => $c->ligne->article->nom ?? 'Inconnu',
-                'agent' => ($c->agent->nom ?? '') . ' ' . ($c->agent->prenom ?? ''),
-                'ancienne_qte' => $c->ligne->quantite_comptee,
-                'nouvelle_qte' => $c->qte,
+                'agent' => trim((($c->agent->nom ?? '') . ' ' . ($c->agent->prenom ?? '')) . ($c->agent->email ? ' <' . $c->agent->email . '>' : '')),
+                'ancienne_qte' => max(0, ($c->ligne->quantite_comptee ?? 0) + $c->qte),
+                'nouvelle_qte' => $c->ligne->quantite_comptee ?? 0,
+                'correction_qte' => $c->qte,
                 'motif' => $c->description,
                 'statut' => $c->statut_validation,
                 'date' => $c->created_at->format('d/m/Y H:i')
@@ -476,17 +455,16 @@ class InventaireService
             ]);
 
         $oldStatus = $inventaire->statut;
-        if ($inventaire->statut !== 'termine') {
+        if ($inventaire->statut == 'en attente' ) {
             $inventaire->update(['statut' => 'en cours']);
         }
 
         $inventaire->refresh()->load(['affectations.agent', 'lignes.article', 'entrepot']);
         
-        // Activity Notifications
-        $this->createNotification('agent actif', $id, null, $user->id, "L'agent {$user->nom} est actif maintenant sur {$inventaire->titre}");
+        $this->createNotification('agent actif', $id, null, "L'agent {$user->nom} est actif maintenant sur {$inventaire->titre}");
         
         if ($oldStatus === 'en attente') {
-            $this->createNotification('inventaire en cours', $id, null, $user->id, "L'inventaire {$inventaire->titre} est passé en cours maintenant");
+            $this->createNotification('inventaire en cours', $id, null, "L'inventaire {$inventaire->titre} est passé en cours maintenant");
         }
 
         broadcast(new InventaireStatusUpdated($inventaire));
@@ -503,7 +481,7 @@ class InventaireService
 
         $inventaire = Inventaire::findOrFail($id)->load(['affectations.agent', 'lignes.article']);
         
-        $this->createNotification('agent inactif', $id, null, $user->id, "L'agent {$user->nom} est maintenant inactif");
+        $this->createNotification('agent inactif', $id, null, "L'agent {$user->nom} est maintenant inactif");
 
         broadcast(new InventaireStatusUpdated($inventaire));
         broadcast(new \App\Events\AgentStatusUpdated((int)$id, (int)$user->id, 'inactif', $inventaire->titre));
@@ -519,34 +497,58 @@ class InventaireService
             throw new \Exception('Non autorisé pour ce type d\'inventaire.', 403);
         }
 
-        if (Article::where('code_barres', $data['code_barres'])->exists()) {
-            throw new \Exception('Ce code-barres existe déjà.', 409);
-        }
+        $quantite = $data['quantite'] ?? 1;
+        $targetEntrepotId = $data['id_entrepot'] ?? $inventaire->id_entrepot;
 
-        return DB::transaction(function () use ($id, $user, $data, $inventaire) {
-            $article = Article::create([
-                'code_barres' => $data['code_barres'],
-                'nom' => $data['nom'],
-                'quantite_total' => 0, // Always 0 for unknown articles
-                'etat' => 'inconnu',
-                'statut' => 'inconnu',
-                'propose_par' => $user->id,
-            ]);
+        return DB::transaction(function () use ($id, $user, $data, $inventaire, $quantite, $targetEntrepotId) {
+            $isNewArticle = !Article::where(
+    'code_barres',
+    $data['code_barres']
+)->exists();
+            $articleQuery = Article::where('code_barres', $data['code_barres']);
+            if ($targetEntrepotId) {
+                $articleQuery->whereHas('entrepots', function ($q) use ($targetEntrepotId) {
+                    $q->where('entrepots.id_entrepot', $targetEntrepotId);
+                });
+            } else {
+                $articleQuery->whereDoesntHave('entrepots');
+            }
+            $article = $articleQuery->first();
 
-            $quantite = $data['quantite'] ?? 1;
-            $targetEntrepotId = $data['id_entrepot'] ?? $inventaire->id_entrepot;
+            if (!$article) {
+                $article = Article::create([
+                    'code_barres' => $data['code_barres'],
+                    'nom' => $data['nom'],
+                    'quantite_total' => 0, 
+                    'etat' => 'inconnu',
+                    'propose_par' => $user->id,
+                ]);
+            }
+
+            $ligne = $this->repository->getLigneByArticle($id, $article->id_article, $targetEntrepotId);
+
+            if ($ligne) {
+                throw new \Exception('Cet article fait déjà partie de l\'inventaire pour cet entrepôt.', 409);
+            }
 
             $ligne = $this->repository->createLigne([
                 'id_inventaire' => $id,
                 'id_article' => $article->id_article,
                 'id_entrepot' => $targetEntrepotId,
-                'quantite_theorique' => 0, // Theoretical is 0 for unknown
+                'quantite_theorique' => 0, 
                 'quantite_comptee' => $quantite,
-                'ecart' => $quantite, // Gap is the entire scanned quantity
+                'ecart' => $quantite, 
             ]);
 
             if ($targetEntrepotId) {
-                $article->entrepots()->attach($targetEntrepotId, ['quantite' => 0, 'propose_par' => $user->id]);
+                $existsInEntrepot = DB::table('ligne_entrepots')
+                    ->where('id_article', $article->id_article)
+                    ->where('id_entrepot', $targetEntrepotId)
+                    ->exists();
+
+                if (!$existsInEntrepot) {
+                    $article->entrepots()->attach($targetEntrepotId, ['quantite' => 0, 'propose_par' => $user->id]);
+                }
             }
 
             $this->repository->createScan([
@@ -555,8 +557,18 @@ class InventaireService
                 'quantite' => $quantite,
             ]);
 
-            broadcast(new \App\Events\ArticleProposeEvent($article, $inventaire, $user, $quantite));
-            $this->createNotification('article inconnu', $id, $article->id_article, $user->id, "Article inconnu proposé par {$user->nom} {$user->prenom} : {$article->nom}");
+
+            if ($isNewArticle) {
+                broadcast(new \App\Events\ArticleProposeEvent($article, $inventaire, $user, $quantite));
+                $message = "Article inconnu proposé par {$user->nom} {$user->prenom} : {$article->nom}";
+                $this->createNotification('article inconnu', $id, $article->id_article, $message);
+            } else {
+                $targetEntrepot = \App\Models\Entrepot::find($targetEntrepotId);
+                $entrepotNom = $targetEntrepot ? $targetEntrepot->nom : 'global';
+                $message = "Article connu '{$article->nom}' proposé par {$user->nom} {$user->prenom} pour l'entrepôt {$entrepotNom}";
+                $this->createNotification('article inconnu', $id, $article->id_article, $message);
+                broadcast(new \App\Events\ScanEnregistre($id, $article, $user->id, $ligne->quantite_comptee, $ligne->ecart, $targetEntrepotId))->toOthers();
+            }
 
             return [
                 'article' => $article,
@@ -566,18 +578,192 @@ class InventaireService
     }
 
     public function acceptArticle($id)
-    {
+{
+    return DB::transaction(function () use ($id) {
+
         $article = Article::findOrFail($id);
-        $article->update(['statut' => 'connu', 'etat' => 'connu']);
-        broadcast(new \App\Events\ArticleAccepteEvent($article));
-        return true;
-    }
+
+        if ($article->etat !== 'inconnu') {
+            return true;
+        }
+
+        $connuArticle = Article::where('code_barres', $article->code_barres)
+            ->where('etat', 'connu')
+            ->where('id_article', '!=', $id)
+            ->first();
+
+        if ($connuArticle) {
+
+            foreach ($article->entrepots as $ent) {
+
+                $existing = $connuArticle->entrepots()
+                    ->where('entrepots.id_entrepot', $ent->id_entrepot)
+                    ->first();
+
+                if ($existing) {
+
+                    $connuArticle->entrepots()->updateExistingPivot(
+                        $ent->id_entrepot,
+                        [
+                            'quantite' =>
+                                ($existing->pivot->quantite ?? 0)
+                                + ($ent->pivot->quantite ?? 0)
+                        ]
+                    );
+
+                } else {
+
+                    $connuArticle->entrepots()->attach(
+                        $ent->id_entrepot,
+                        [
+                            'quantite' => $ent->pivot->quantite ?? 0,
+                            'propose_par' => $ent->pivot->propose_par
+                        ]
+                    );
+                }
+            }
+
+            $total = DB::table('ligne_entrepots')
+                ->where('id_article', $connuArticle->id_article)
+                ->sum('quantite');
+
+            $connuArticle->update([
+                'quantite_total' => $total
+            ]);
+
+            foreach ($article->lignesInventaire as $ligne) {
+
+                $collision = \App\Models\LigneInventaire::where(
+                    'id_inventaire',
+                    $ligne->id_inventaire
+                )
+                ->where('id_article', $connuArticle->id_article)
+                ->where('id_entrepot', $ligne->id_entrepot)
+                ->first();
+
+                if ($collision) {
+
+                    $collision->update([
+                        'quantite_theorique' =>
+                            $collision->quantite_theorique + $ligne->quantite_theorique,
+
+                        'quantite_comptee' =>
+                            $collision->quantite_comptee + $ligne->quantite_comptee,
+
+                        'ecart' =>
+                            $collision->ecart + $ligne->ecart
+                    ]);
+
+                    \App\Models\Scan::where(
+                        'id_ligne',
+                        $ligne->id_ligne
+                    )->update([
+                        'id_ligne' => $collision->id_ligne
+                    ]);
+
+                    $ligne->delete();
+
+                } else {
+
+                    $ligne->update([
+                        'id_article' => $connuArticle->id_article
+                    ]);
+                }
+            }
+
+            $notifs = \App\Models\Notification::where(
+                'statut',
+                'non lu'
+            )->get();
+
+            foreach ($notifs as $n) {
+
+                if (
+                    $n->id_article == $id
+                    || $n->id_article == $connuArticle->id_article
+                ) {
+
+                    $n->update([
+                        'statut' => 'lu'
+                    ]);
+
+                } else {
+
+                    $decoded = json_decode($n->contenu, true);
+
+                    if (
+                        $decoded
+                        && isset($decoded['article_id'])
+                        && (int)$decoded['article_id'] === (int)$id
+                    ) {
+                        $n->update([
+                            'statut' => 'lu'
+                        ]);
+                    }
+                }
+            }
+
+            $article->delete();
+
+            broadcast(
+                new \App\Events\ArticleAccepteEvent($connuArticle)
+            );
+
+            return $connuArticle->load([
+                'categories',
+                'entrepots'
+            ]);
+        }
+
+        $article->update([
+            'etat' => 'connu'
+        ]);
+
+        $notifs = \App\Models\Notification::where(
+            'statut',
+            'non lu'
+        )->get();
+
+        foreach ($notifs as $n) {
+
+            if ($n->id_article == $id) {
+
+                $n->update([
+                    'statut' => 'lu'
+                ]);
+
+            } else {
+
+                $decoded = json_decode($n->contenu, true);
+
+                if (
+                    $decoded
+                    && isset($decoded['article_id'])
+                    && (int)$decoded['article_id'] === (int)$id
+                ) {
+                    $n->update([
+                        'statut' => 'lu'
+                    ]);
+                }
+            }
+        }
+
+        broadcast(
+            new \App\Events\ArticleAccepteEvent($article)
+        );
+
+        return $article->fresh()->load([
+            'categories',
+            'entrepots'
+        ]);
+    });
+}
 
     public function addNote($id, $user, $contenu)
     {
         $inventaire = Inventaire::with('affectations')->findOrFail($id);
-        if ($inventaire->statut === 'termine') {
-            throw new \Exception("Impossible d'ajouter une note à un inventaire terminé.", 403);
+        if ($inventaire->statut === 'cloture') {
+            throw new \Exception("Impossible d'ajouter une note à un inventaire cloturé.", 403);
         }
 
         $note = $this->repository->createNote([
@@ -591,8 +777,7 @@ class InventaireService
 
         $message = "Nouvelle note de {$user->nom}: " . substr($contenu, 0, 50);
 
-        // One notification for the inventory event (Sender is user->id)
-        $this->createNotification('nouvelle note', $id, null, $user->id, $message);
+        $this->createNotification('nouvelle note', $id, null, $message, $note->id_note);
 
         broadcast(new \App\Events\NoteAdded($note))->toOthers();
         return $note;
@@ -601,7 +786,6 @@ class InventaireService
     public function updateNote($id, $user, $contenu)
     {
         $note = $this->repository->findNoteById($id);
-        // Allow the owner OR an admin to update the note (though usually owners edit their own)
         if ($note->id_user !== $user->id && $user->role !== 'admin') throw new \Exception('Non autorisé', 403);
 
         $note->update(['contenu' => $contenu]);
@@ -624,13 +808,13 @@ class InventaireService
         return true;
     }
 
-    protected function createNotification($type, $inventaireId, $articleId, $userId, $contenu)
+    protected function createNotification($type, $inventaireId, $articleId, $contenu, $noteId = null)
     {
         $notif = \App\Models\Notification::create([
             'type' => $type,
             'id_inventaire' => $inventaireId,
             'id_article' => $articleId,
-            'id_user' => $userId,
+            'id_note' => $noteId,
             'contenu' => $contenu,
             'statut' => 'non lu'
         ]);

@@ -62,4 +62,14 @@ class StockService
         $category = $this->repository->findCategoryById($id);
         return $this->repository->deleteCategory($category);
     }
+
+    public function deleteAllEntrepots()
+    {
+        return $this->repository->deleteAllEntrepots();
+    }
+
+    public function deleteAllCategories()
+    {
+        return $this->repository->deleteAllCategories();
+    }
 }

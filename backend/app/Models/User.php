@@ -34,8 +34,6 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
     ];
-
-    // The utilisateurs table has no remember_token column
     public function getRememberTokenName()
     {
         return null;

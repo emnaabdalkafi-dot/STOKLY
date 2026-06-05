@@ -120,10 +120,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen = true }) => {
             <i className="bi bi-gear" />
             <span>Paramètre</span>
           </NavLink>
-          <a title='aide & support' className={styles.dashboardNavLink} href="#">
-            <i className="bi bi-chat-dots" />
-            <span>Aide & Support</span>
-          </a>
         </nav>
 
         <div className={styles.dashboardUserCard}>

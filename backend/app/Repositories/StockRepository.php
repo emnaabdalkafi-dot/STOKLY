@@ -64,4 +64,15 @@ class StockRepository
     {
         return $category->delete();
     }
+
+    public function deleteAllEntrepots()
+    {
+        \DB::table('ligne_entrepots')->delete();
+        return Entrepot::query()->delete();
+    }
+
+    public function deleteAllCategories()
+    {
+        return Category::query()->delete();
+    }
 }

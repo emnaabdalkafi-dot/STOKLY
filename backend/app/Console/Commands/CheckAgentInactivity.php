@@ -3,6 +3,12 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Models\Affectation;
+use App\Models\Inventaire;
+use App\Models\User;
+use App\Models\Scan;
+use App\Models\Notification;
+use App\Events\AgentStatusUpdated;
 
 class CheckAgentInactivity extends Command
 {
@@ -13,46 +19,79 @@ class CheckAgentInactivity extends Command
      */
     protected $signature = 'app:check-agent-inactivity';
 
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
     protected $description = 'Mark agents as inactive after 10 minutes of no scan';
 
+    /**
+     * Execute the console command.
+     */
     public function handle()
     {
         $tenMinutesAgo = now()->subMinutes(10);
 
-        $inactiveAffectations = \App\Models\Affectation::where('statut_participation', 'actif')
-            ->where(function($q) use ($tenMinutesAgo) {
-                $q->where('last_action_at', '<', $tenMinutesAgo)
-                  ->orWhereNull('last_action_at');
-            })
-            ->get();
+        // Get all active affectations
+        $activeAffectations = Affectation::where(
+            'statut_participation',
+            'actif'
+        )->get();
 
-        foreach ($inactiveAffectations as $aff) {
-            $aff->update(['statut_participation' => 'inactif']);
-            
-            // Broadcast the status update
-            $inventaire = \App\Models\Inventaire::find($aff->id_inventaire);
-            if ($inventaire) {
-                $agent = \App\Models\User::find($aff->id_agent);
-                $agentName = $agent ? "{$agent->nom} {$agent->prenom}" : "Agent #{$aff->id_agent}";
+        $inactiveCount = 0;
 
-                // Create persistent notification for admin
-                \App\Models\Notification::create([
-                    'type' => null,
-                    'id_user' => $aff->id_agent,
+        foreach ($activeAffectations as $aff) {
+
+            // Get last scan of this agent in this inventory
+            $lastScan = Scan::where('id_agent', $aff->id_agent)
+                ->where('id_inventaire', $aff->id_inventaire)
+                ->latest('created_at')
+                ->first();
+
+            // Check inactivity
+            $isInactive = !$lastScan ||
+                $lastScan->created_at < $tenMinutesAgo;
+
+            if ($isInactive) {
+
+                // Update status
+                $aff->update([
+                    'statut_participation' => 'inactif'
+                ]);
+
+                // Get inventory
+                $inventaire = Inventaire::find($aff->id_inventaire);
+
+                // Get agent
+                $agent = User::find($aff->id_agent);
+
+                $agentName = $agent
+                    ? "{$agent->nom} {$agent->prenom}"
+                    : "Agent #{$aff->id_agent}";
+
+                // Create notification
+                $notif = Notification::create([
+                    'type' => 'agent inactif',
                     'id_inventaire' => $aff->id_inventaire,
-                    'contenu' => "L'agent {$agentName} est devenu inactif sur l'inventaire: {$inventaire->titre}",
+                    'contenu' => "L'agent {$agentName} est devenu inactif sur l'inventaire : {$inventaire->titre}",
                     'statut' => 'non lu',
                 ]);
 
-                broadcast(new \App\Events\AgentStatusUpdated(
-                    (int)$aff->id_inventaire, 
-                    (int)$aff->id_agent, 
-                    'inactif', 
+                broadcast(new \App\Events\NotificationCreated($notif));
+
+                // Broadcast realtime event
+                broadcast(new AgentStatusUpdated(
+                    (int)$aff->id_inventaire,
+                    (int)$aff->id_agent,
+                    'inactif',
                     $inventaire->titre
                 ));
+
+                $inactiveCount++;
             }
         }
 
-        $this->info(count($inactiveAffectations) . ' agents marked as inactive.');
+        $this->info("{$inactiveCount} agents marked as inactive.");
     }
 }

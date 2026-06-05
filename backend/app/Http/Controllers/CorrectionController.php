@@ -24,8 +24,10 @@ class CorrectionController extends Controller
     {
         $request->validate([
             'id_ligne_inventaire' => 'required|exists:ligne_inventaires,id_ligne',
-            'qte' => 'required|numeric|min:0',
+            'qte' => 'required|numeric|min:1',
             'description' => 'required|string',
+            'article_code' => 'sometimes|string',
+            'id_entrepot' => 'sometimes|integer|exists:entrepots,id_entrepot',
         ]);
 
         $correction = $this->service->requestCorrection($request->user(), $request->all());

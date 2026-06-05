@@ -15,7 +15,7 @@ return new class extends Migration
     $table->id('id_inventaire');
     $table->date('date_debut')->nullable();
     $table->date('date_fin')->nullable();
-    $table->enum('statut', ['en cours', 'en attente', 'termine'])->default('en attente');
+    $table->enum('statut', ['en cours', 'en attente', 'cloture'])->default('en attente');
     $table->string('site')->nullable();
     $table->timestamps();
 });

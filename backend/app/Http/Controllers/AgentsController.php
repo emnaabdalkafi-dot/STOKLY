@@ -16,9 +16,7 @@ class AgentsController extends Controller
         $this->agentService = $agentService;
     }
 
-    // ─────────────────────────────────────────
-    //  GET /agents/stats
-    // ─────────────────────────────────────────
+ 
     public function stats()
     {
         return response()->json([
@@ -27,9 +25,7 @@ class AgentsController extends Controller
         ]);
     }
 
-    // ─────────────────────────────────────────
-    //  GET /agents  — Liste avec filtres
-    // ─────────────────────────────────────────
+ //list agents 
     public function index(Request $request)
     {
         $agents = $this->agentService->getAllAgents(
@@ -42,9 +38,7 @@ class AgentsController extends Controller
         ]);
     }
 
-    // ─────────────────────────────────────────
-    //  GET /agents/{id}
-    // ─────────────────────────────────────────
+    //get agent
     public function getAgents($id)
     {
         $agent = $this->agentService->findAgentById($id);
@@ -62,17 +56,17 @@ class AgentsController extends Controller
         ]);
     }
 
-    // ─────────────────────────────────────────
-    //  POST /agents
-    // ─────────────────────────────────────────
+ //create agent
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'nom'      => 'required|string|max:255',
             'prenom'   => 'required|string|max:255',
             'email'    => 'required|email|unique:utilisateurs,email',
-            'tel'      => 'nullable|string|max:20',
+            'tel'      => 'nullable|digits:8',
             'password' => 'nullable|string|min:6',
+        ], [
+            'tel.digits' => 'Le numéro de téléphone doit contenir exactement 8 chiffres.',
         ]);
 
         if ($validator->fails()) {
@@ -92,17 +86,17 @@ return response()->json([
 ], 201);
     }
 
-    // ─────────────────────────────────────────
-    //  PUT /agents/{id}
-    // ─────────────────────────────────────────
+//update agent
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
             'nom'      => 'sometimes|string|max:255',
             'prenom'   => 'sometimes|string|max:255',
             'email'    => 'sometimes|email|unique:utilisateurs,email,' . $id,
-            'tel'      => 'nullable|string|max:20',
+            'tel'      => 'nullable|digits:8',
             'password' => 'nullable|string|min:6',
+        ], [
+            'tel.digits' => 'Le numéro de téléphone doit contenir exactement 8 chiffres.',
         ]);
 
         if ($validator->fails()) {
@@ -128,9 +122,7 @@ return response()->json([
         ]);
     }
 
-    // ─────────────────────────────────────────
-    //  DELETE /agents/{id}
-    // ─────────────────────────────────────────
+    //  DELETE agent
     public function destroy($id)
     {
         $deleted = $this->agentService->deleteAgent($id);
@@ -158,62 +150,6 @@ return response()->json([
         ]);
     }
 
-    // ─────────────────────────────────────────
-    //  POST /agents/{id}/assign
-    // ─────────────────────────────────────────
-    public function assignInventory(Request $request, $id)
-    {
-        $validator = Validator::make($request->all(), [
-            'inventaire_id'        => 'required|integer|exists:inventaires,id_inventaire',
-            'statut_participation' => 'nullable|string|in:actif,inactif',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors'  => $validator->errors(),
-            ], 422);
-        }
-
-        $affectation = $this->agentService->assignInventory(
-            $id,
-            $request->inventaire_id,
-            $request->statut_participation ?? 'actif'
-        );
-
-        if (!$affectation) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Agent non trouvé',
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Agent affecté à l\'inventaire avec succès',
-            'data'    => $affectation,
-        ]);
-    }
-
-    // ─────────────────────────────────────────
-    //  DELETE /agents/{id}/assign/{inventaireId}
-    // ─────────────────────────────────────────
-    public function removeAssignment($id, $inventaireId)
-    {
-        $removed = $this->agentService->removeAssignment($id, $inventaireId);
-
-        if (!$removed) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Affectation non trouvée',
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Affectation supprimée avec succès',
-        ]);
-    }
     //login agent
     public function login(Request $request)
     {

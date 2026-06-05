@@ -3,30 +3,82 @@
 namespace App\Repositories;
 
 use App\Models\Notification;
+use App\Models\Note;
 
 class NotificationRepository
 {
+    /**
+     * Get notifications for a user based on their role.
+     *
+     * Agent rules:
+     *  - Type 'nouvel inventaire': only if agent is assigned to that inventaire
+     *  - Type 'nouvelle note': only if agent is assigned to the inventaire
+     *                          AND the note was NOT written by this agent
+     *
+     * Admin rules:
+     *  - Everything EXCEPT 'nouvel inventaire' (that's agent-only)
+     *  - Except 'nouvelle note' that the admin themselves wrote
+     */
     public function getForUser($user)
     {
-        return Notification::where(function($q) use ($user) {
-                $q->whereNull('id_user')
-                  ->orWhere('id_user', '!=', $user->id);
+        if ($user->role === 'agent') {
+            return $this->getAgentNotifications($user);
+        }
+
+        return $this->getAdminNotifications($user);
+    }
+
+    protected function getAgentNotifications($user)
+    {
+        // Inventaires this agent is assigned to
+        $assignedInvIds = \App\Models\Affectation::where('id_agent', $user->id)
+            ->pluck('id_inventaire');
+
+        return Notification::where(function ($q) use ($user, $assignedInvIds) {
+            // 'nouvel inventaire' - only for assigned inventaires
+            $q->where(function ($q2) use ($assignedInvIds) {
+                $q2->where('type', 'nouvel inventaire')
+                   ->whereIn('id_inventaire', $assignedInvIds);
             })
-            ->where(function($q) use ($user) {
-                if ($user->role === 'agent') {
-                    // Agent sees: 
-                    // 1. Notifications targeted to him (rare in new logic but possible)
-                    // 2. Notifications for inventories he is assigned to
-                    $assignedInvIds = \App\Models\Affectation::where('id_agent', $user->id)->pluck('id_inventaire');
-                    $q->whereIn('id_inventaire', $assignedInvIds)
-                      ->whereIn('type', ['nouvelle note', 'inventaire affecte']);
-                } else {
-                    // Admin sees everything (except his own actions)
-                    // No extra filter needed, already restricted by id_user != user->id
-                }
-            })
-            ->orderBy('created_at', 'desc')
-            ->get();
+            // 'nouvelle note' - only for assigned inventaires, excluding notes written by this agent
+            ->orWhere(function ($q2) use ($user, $assignedInvIds) {
+                $q2->where('type', 'nouvelle note')
+                   ->whereIn('id_inventaire', $assignedInvIds)
+                   ->where(function ($q3) use ($user) {
+                       // Exclude notifications for notes written by this agent
+                       $q3->whereNull('id_note')
+                          ->orWhereHas('note', function ($q4) use ($user) {
+                              $q4->where('id_user', '!=', $user->id);
+                          });
+                   });
+            });
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
+    }
+
+    protected function getAdminNotifications($user)
+    {
+        return Notification::where(function ($q) use ($user) {
+            // Admin sees everything except agent-only notifications (nouvel inventaire)
+            // and notes that the admin themselves wrote
+            $q->where('type', '!=', 'nouvel inventaire')
+              ->where(function ($q2) use ($user) {
+                  // For 'nouvelle note', exclude notes written by this admin
+                  $q2->where('type', '!=', 'nouvelle note')
+                     ->orWhere(function ($q3) use ($user) {
+                         $q3->where('type', 'nouvelle note')
+                            ->where(function ($q4) use ($user) {
+                                $q4->whereNull('id_note')
+                                   ->orWhereHas('note', function ($q5) use ($user) {
+                                       $q5->where('id_user', '!=', $user->id);
+                                   });
+                            });
+                     });
+              });
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
     }
 
     public function findById($id)
@@ -43,34 +95,92 @@ class NotificationRepository
 
     public function getUnreadCount($user)
     {
+        if ($user->role === 'agent') {
+            $assignedInvIds = \App\Models\Affectation::where('id_agent', $user->id)
+                ->pluck('id_inventaire');
+
+            return Notification::where('statut', 'non lu')
+                ->where(function ($q) use ($user, $assignedInvIds) {
+                    $q->where(function ($q2) use ($assignedInvIds) {
+                        $q2->where('type', 'nouvel inventaire')
+                           ->whereIn('id_inventaire', $assignedInvIds);
+                    })
+                    ->orWhere(function ($q2) use ($user, $assignedInvIds) {
+                        $q2->where('type', 'nouvelle note')
+                           ->whereIn('id_inventaire', $assignedInvIds)
+                           ->where(function ($q3) use ($user) {
+                               $q3->whereNull('id_note')
+                                  ->orWhereHas('note', function ($q4) use ($user) {
+                                      $q4->where('id_user', '!=', $user->id);
+                                  });
+                           });
+                    });
+                })
+                ->count();
+        }
+
+        // Admin unread count
         return Notification::where('statut', 'non lu')
-            ->where(function($q) use ($user) {
-                $q->whereNull('id_user')
-                  ->orWhere('id_user', '!=', $user->id);
-            })
-            ->where(function($q) use ($user) {
-                if ($user->role === 'agent') {
-                    $assignedInvIds = \App\Models\Affectation::where('id_agent', $user->id)->pluck('id_inventaire');
-                    $q->whereIn('id_inventaire', $assignedInvIds)
-                      ->whereIn('type', ['nouvelle note', 'inventaire affecte']);
-                }
+            ->where(function ($q) use ($user) {
+                $q->where('type', '!=', 'nouvel inventaire')
+                  ->where(function ($q2) use ($user) {
+                      $q2->where('type', '!=', 'nouvelle note')
+                         ->orWhere(function ($q3) use ($user) {
+                             $q3->where('type', 'nouvelle note')
+                                ->where(function ($q4) use ($user) {
+                                    $q4->whereNull('id_note')
+                                       ->orWhereHas('note', function ($q5) use ($user) {
+                                           $q5->where('id_user', '!=', $user->id);
+                                       });
+                                });
+                         });
+                  });
             })
             ->count();
     }
 
     public function markAllAsRead($user)
     {
+        if ($user->role === 'agent') {
+            $assignedInvIds = \App\Models\Affectation::where('id_agent', $user->id)
+                ->pluck('id_inventaire');
+
+            return Notification::where('statut', 'non lu')
+                ->where(function ($q) use ($user, $assignedInvIds) {
+                    $q->where(function ($q2) use ($assignedInvIds) {
+                        $q2->where('type', 'nouvel inventaire')
+                           ->whereIn('id_inventaire', $assignedInvIds);
+                    })
+                    ->orWhere(function ($q2) use ($user, $assignedInvIds) {
+                        $q2->where('type', 'nouvelle note')
+                           ->whereIn('id_inventaire', $assignedInvIds)
+                           ->where(function ($q3) use ($user) {
+                               $q3->whereNull('id_note')
+                                  ->orWhereHas('note', function ($q4) use ($user) {
+                                      $q4->where('id_user', '!=', $user->id);
+                                  });
+                           });
+                    });
+                })
+                ->update(['statut' => 'lu']);
+        }
+
+        // Admin marks all readable notifications as read
         return Notification::where('statut', 'non lu')
-            ->where(function($q) use ($user) {
-                $q->whereNull('id_user')
-                  ->orWhere('id_user', '!=', $user->id);
-            })
-            ->where(function($q) use ($user) {
-                if ($user->role === 'agent') {
-                    $assignedInvIds = \App\Models\Affectation::where('id_agent', $user->id)->pluck('id_inventaire');
-                    $q->whereIn('id_inventaire', $assignedInvIds)
-                      ->whereIn('type', ['nouvelle note', 'inventaire affecte']);
-                }
+            ->where(function ($q) use ($user) {
+                $q->where('type', '!=', 'nouvel inventaire')
+                  ->where(function ($q2) use ($user) {
+                      $q2->where('type', '!=', 'nouvelle note')
+                         ->orWhere(function ($q3) use ($user) {
+                             $q3->where('type', 'nouvelle note')
+                                ->where(function ($q4) use ($user) {
+                                    $q4->whereNull('id_note')
+                                       ->orWhereHas('note', function ($q5) use ($user) {
+                                           $q5->where('id_user', '!=', $user->id);
+                                       });
+                                });
+                         });
+                  });
             })
             ->update(['statut' => 'lu']);
     }

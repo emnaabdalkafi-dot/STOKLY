@@ -3,17 +3,19 @@
 
 Bonjour **{{ $agent->nom }} {{ $agent->prenom }}**,
 
-Votre compte agent a été créé avec succès. Vous pouvez maintenant vous connecter à l'application mobile en utilisant les identifiants suivants :
+Votre compte agent a été créé avec succès.
 
+Vous pouvez maintenant accéder à l’application mobile Stockly avec les informations suivantes :
+    
 **Email :** {{ $agent->email }}  
 **Mot de passe :** `{{ $password }}`
 
-<x-mail::button :url="config('app.url')">
-Se connecter à l'application
+<x-mail::button :url="url('/storage/stokly.apk')">
+Télécharger l'application
 </x-mail::button>
 
-*Pour des raisons de sécurité, nous vous conseillons de changer votre mot de passe dès votre première connexion.*
+⚠️ *Pour des raisons de sécurité, nous vous conseillons de changer votre mot de passe dès votre première connexion.*
 
 Merci,<br>
-L'équipe {{ config('app.name') }}
+L'équipe Stockly
 </x-mail::message>

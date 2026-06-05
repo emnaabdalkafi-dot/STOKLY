@@ -89,4 +89,16 @@ class StockController extends Controller
         $this->service->deleteCategory($id);
         return response()->json(['success' => true, 'message' => 'Catégorie supprimée avec succès']);
     }
+
+    public function deleteAllEntrepots()
+    {
+        $this->service->deleteAllEntrepots();
+        return response()->json(['success' => true, 'message' => 'Tous les entrepôts ont été supprimés avec succès']);
+    }
+
+    public function deleteAllCategories()
+    {
+        $this->service->deleteAllCategories();
+        return response()->json(['success' => true, 'message' => 'Toutes les catégories ont été supprimées avec succès']);
+    }
 }

@@ -6,14 +6,13 @@ use App\Models\Inventaire;
 use App\Models\LigneInventaire;
 use App\Models\Affectation;
 use App\Models\Scan;
-use App\Models\Rapport;
 use Illuminate\Support\Facades\DB;
 
 class InventaireRepository
 {
     public function getAll($filters = [])
     {
-        $query = Inventaire::with(['affectations.agent', 'lignes.article', 'entrepot']);
+        $query = Inventaire::with(['affectations.agent', 'lignes.article', 'lignes.entrepot', 'entrepot']);
 
         if (!empty($filters['site'])) {
             $query->where(function($q) use ($filters) {
@@ -44,13 +43,13 @@ class InventaireRepository
 
     public function findById($id)
     {
-        return Inventaire::with(['affectations.agent', 'lignes.article', 'entrepot'])
+        return Inventaire::with(['affectations.agent', 'lignes.article', 'lignes.entrepot', 'entrepot'])
             ->findOrFail($id);
     }
 
     public function getAgentInventories($userId, $filters = [])
     {
-        $query = Inventaire::with(['affectations.agent', 'lignes.article', 'entrepot'])
+        $query = Inventaire::with(['affectations.agent', 'lignes.article', 'lignes.entrepot', 'entrepot'])
             ->whereHas('affectations', function ($q) use ($userId) {
                 $q->where('id_agent', $userId);
             });
@@ -80,11 +79,7 @@ class InventaireRepository
         return $inventaire;
     }
 
-    public function delete($id)
-    {
-        $inventaire = Inventaire::findOrFail($id);
-        return $inventaire->delete();
-    }
+
 
     public function createAffectation(array $data)
     {
@@ -134,30 +129,15 @@ class InventaireRepository
 
     public function deleteScans($inventaireId)
     {
-        // Delete scans by joining through ligne_inventaires
         $ligneIds = \App\Models\LigneInventaire::where('id_inventaire', $inventaireId)
             ->pluck('id_ligne');
         return Scan::whereIn('id_ligne', $ligneIds)->delete();
     }
 
-    public function findRapportByInventaire($inventaireId)
-    {
-        return Rapport::where('id_inventaire', $inventaireId)->first();
-    }
 
-    public function createRapport(array $data)
-    {
-        return Rapport::create($data);
-    }
-
-    public function getAllRapports()
-    {
-        return Rapport::orderBy('created_at', 'desc')->get();
-    }
 
     public function getScansByArticle($inventaireId)
     {
-        // Join scans with ligne_inventaires to get article/entrepot/agent info
         return Scan::join('ligne_inventaires', 'scans.id_ligne', '=', 'ligne_inventaires.id_ligne')
             ->where('ligne_inventaires.id_inventaire', $inventaireId)
             ->select(

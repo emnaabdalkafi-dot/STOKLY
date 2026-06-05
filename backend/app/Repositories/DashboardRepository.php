@@ -51,8 +51,17 @@ class DashboardRepository
         if ($invId !== 'all') {
             $query->where('id_inventaire', $invId);
         }
-        $positif = (clone $query)->where('ecart', '>', 0)->count();
-        $negatif = (clone $query)->where('ecart', '<', 0)->count();
+        $positif = (clone $query)
+            ->whereNotNull('quantite_comptee')
+            ->where('quantite_comptee', '>', 0)
+            ->whereRaw('quantite_comptee > quantite_theorique')
+            ->count();
+            
+        $negatif = (clone $query)
+            ->whereNotNull('quantite_comptee')
+            ->where('quantite_comptee', '>', 0)
+            ->whereRaw('quantite_comptee < quantite_theorique')
+            ->count();
         
         return [
             'positif' => $positif,
@@ -62,24 +71,26 @@ class DashboardRepository
 
     public function getGapAnalysis($invId = 'all')
     {
-        $query = LigneInventaire::whereNotNull('quantite_comptee')->where('quantite_theorique', '>', 0);
+        $query = LigneInventaire::whereNotNull('quantite_comptee')->where('quantite_theorique', '>=', 0);
         if ($invId !== 'all') {
             $query->where('id_inventaire', $invId);
         }
 
         $sansEcart = (clone $query)
-            ->where('quantite_comptee', '>', 0)
-            ->whereRaw('quantite_theorique = quantite_comptee')
+            ->where(function ($q) {
+                $q->whereRaw('quantite_theorique = quantite_comptee')
+                  ->orWhere('quantite_comptee', 0);
+            })
             ->count();
 
         $ecartPositif = (clone $query)
-            ->where('ecart', '>', 0)
-            ->whereRaw('quantite_theorique < quantite_comptee')
+            ->where('quantite_comptee', '>', 0)
+            ->whereRaw('quantite_comptee > quantite_theorique')
             ->count();
 
         $ecartNegatif = (clone $query)
-            ->where('ecart', '<', 0)
-            ->whereRaw('quantite_theorique > quantite_comptee')
+            ->where('quantite_comptee', '>', 0)
+            ->whereRaw('quantite_comptee < quantite_theorique')
             ->count();
 
         $total = $sansEcart + $ecartPositif + $ecartNegatif;
@@ -99,7 +110,7 @@ class DashboardRepository
 
     public function getQuickSummary($invId = 'all')
     {
-        $query = Inventaire::where('statut', '!=', 'termine');
+        $query = Inventaire::where('statut', '!=', 'cloture');
         if ($invId !== 'all') {
             $query->where('id_inventaire', $invId);
         }
@@ -220,6 +231,30 @@ $countedSansEcart = $totalCounted - $totalPositiveEcart;
         })->sortByDesc('scans')->take(5)->values();
     }
 
+    public function getEcartsList($invId = 'all')
+    {
+        $query = LigneInventaire::with(['article', 'inventaire'])->whereNotNull('quantite_comptee');
+        if ($invId !== 'all') {
+            $query->where('id_inventaire', $invId);
+        }
+
+        $query->where('quantite_comptee', '>', 0)
+              ->whereRaw('quantite_comptee != quantite_theorique');
+
+        $lignes = $query->take(10)->get();
+
+        return $lignes->map(function($ligne) {
+            $ecart = $ligne->quantite_comptee - $ligne->quantite_theorique;
+            return [
+                'article' => $ligne->article->nom,
+                'code_barres' => $ligne->article->code_barres,
+                'inventaire' => $ligne->inventaire->titre,
+                'ecart_positif' => $ecart > 0 ? $ecart : null,
+                'ecart_negatif' => $ecart < 0 ? $ecart : null,
+            ];
+        });
+    }
+
     public function getRecentActivities($invId = 'all')
     {
         $activities = collect();
@@ -244,7 +279,7 @@ $countedSansEcart = $totalCounted - $totalPositiveEcart;
         }
 
         // 2. Inventory Status Changes (based on updated_at)
-        $invs = Inventaire::whereIn('statut', ['en cours', 'termine'])
+        $invs = Inventaire::whereIn('statut', ['en cours', 'cloture'])
             ->when($invId !== 'all', fn($q) => $q->where('id_inventaire', $invId))
             ->latest('updated_at')
             ->take(5)
@@ -292,7 +327,7 @@ $countedSansEcart = $totalCounted - $totalPositiveEcart;
 
     public function getInventories()
     {
-        return Inventaire::where('statut', '!=', 'termine')
+        return Inventaire::where('statut', 'en cours')
             ->select('id_inventaire', 'titre', 'site')
             ->get()
             ->map(function($inv) {

@@ -47,27 +47,41 @@ class _NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
-  void _applyFiltersAndSearch() {
-    setState(() {
-      _filteredNotifications = _notifications.where((notif) {
-        final contenu = notif['contenu_decoded'] ?? {};
-        final title = (contenu['titre'] ?? 'Inventaire').toString().toLowerCase();
-        final message = (contenu['message'] ?? '').toString().toLowerCase();
-        final query = _searchController.text.toLowerCase();
-        
-        final matchesSearch = title.contains(query) || message.contains(query);
-        
-        bool matchesFilter = true;
-        if (_activeFilter == 'Notes') {
-          matchesFilter = title.contains('note') || message.contains('note');
-        } else if (_activeFilter == 'Inventaires') {
-          matchesFilter = title.contains('inventaire') || message.contains('inventaire');
-        }
-        
-        return matchesSearch && matchesFilter;
-      }).toList();
-    });
-  }
+void _applyFiltersAndSearch() {
+  setState(() {
+    _filteredNotifications = _notifications.where((notif) {
+      final contenu = notif['contenu_decoded'] ?? {};
+
+      final title =
+          (contenu['titre'] ?? '').toString().toLowerCase();
+
+      final message =
+          (contenu['message'] ?? '').toString().toLowerCase();
+
+      final query = _searchController.text.toLowerCase();
+
+      final matchesSearch =
+          title.contains(query) || message.contains(query);
+
+      bool matchesFilter = true;
+
+      if (_activeFilter == 'Notes') {
+        matchesFilter =
+            title.contains('note') ||
+            message.contains('note');
+      }
+
+      else if (_activeFilter == 'Inventaires') {
+
+        matchesFilter =
+            message.contains('nouvel inventaire assigné') ||
+            message.contains('nouveau inventaire assigné');
+      }
+
+      return matchesSearch && matchesFilter;
+    }).toList();
+  });
+}
 
   Future<void> _markAsRead(int id) async {
     final result = await _notificationService.markAsRead(id);
@@ -97,26 +111,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Notifications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(7), // Increased from 5
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: 30,
-                    height: 30,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(30), // Circular
+                borderRadius: BorderRadius.circular(30),
                 border: Border.all(color: AppColors.darkBlueBorder, width: 1.2), // Dark blue border
               ),
               child: TextField(
@@ -195,8 +194,16 @@ class _NotificationsPageState extends State<NotificationsPage> {
           final notif = _filteredNotifications[index];
           final bool isUnread = notif['statut'] == 'non lu';
           final contenu = notif['contenu_decoded'] ?? {};
-          final title = contenu['titre'] ?? 'Notification';
           final message = contenu['message'] ?? '';
+          final inventaire =
+    contenu['inventaire_titre'] ?? 'Inventaire';
+
+final isNote =
+    message.toLowerCase().contains('note');
+
+final title = isNote
+    ? 'Nouvelle note • $inventaire'
+    : (contenu['titre'] ?? 'Notification');
           final dateStr = notif['created_at'] != null 
               ? timeago.format(DateTime.parse(notif['created_at']), locale: 'fr')
               : '';

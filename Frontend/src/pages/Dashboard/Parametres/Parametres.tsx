@@ -94,40 +94,37 @@ const Parametres: React.FC = () => {
     }
   };
 
-  // ──────────────────────────────────────────
-  //  render
-  // ──────────────────────────────────────────
-
   return (
     <main className={styles.dashboardMain}>
       {isEditing && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
+          <div className={styles.modalPage}>
+            <div className={styles.modalHeader} > 
+                         <h3 className={styles.modalTitle} >Modifier le profil</h3>
+
             <button
-              className={styles.dashboardMenuToggle}
+              className={styles.closeBtn }
               onClick={() => setIsEditing(false)}
             >
               <i className="bi bi-x-lg" />
             </button>
-            <h3 style={{ marginTop: 0, marginBottom: '1.5rem', color: '#102a43' }}>Modifier le profil</h3>
-            
+            </div>
+            <div className={styles.modalContent} >
             <form className={styles.detailsForm} onSubmit={handleSubmit}>
-              <div className={styles.avatarUpload} onClick={() => fileInputRef.current?.click()}>
-              <div title="Cliquer pour changer d'avatar">
+              <div className={styles.avatarUpload}title="Cliquer pour changer d'avatar" >
             {user?.avatar ? (
               <img 
                 src={`http://localhost:8000${user.avatar}`} 
                 alt="Avatar" 
+                onClick={() => fileInputRef.current?.click()}
               />
             ) : (
-              <div >
+              <div onClick={() => fileInputRef.current?.click()}>
                 {user?.nom && user?.prenom 
                   ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}` 
                   : '??'}
               </div>
             )}
-          </div>
-                <span style={{ fontSize: '0.7rem', color: '#D99A37', cursor: 'pointer', fontWeight: 600 }}>Changer la photo</span>
                 <input 
                   type="file" 
                   ref={fileInputRef} 
@@ -160,7 +157,7 @@ const Parametres: React.FC = () => {
                 <label>Téléphone</label>
                 <div className={styles.InputGroup}>
                   <i className="bi bi-telephone" />
-                  <input type="tel" name="tel" value={form.tel} onChange={handleChange} />
+                  <input type="tel" name="tel" maxLength={8} minLength={8} value={form.tel} onChange={handleChange} />
                 </div>
                 {errors.tel && <span className={styles.fieldError}>{errors.tel[0]}</span>}
               </div>
@@ -174,9 +171,9 @@ const Parametres: React.FC = () => {
                 {errors.email && <span className={styles.fieldError}>{errors.email[0]}</span>}
               </div>
 
-              <div style={{ marginTop: '1rem', borderTop: '1px solid #e2e8f0', paddingTop: '1rem' }}>
-                <label style={{ marginBottom: '0.5rem', display: 'block' }}>Changer le mot de passe (optionnel)</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+              <div className={styles.motDePasseSection}>
+                <label >Changer le mot de passe (optionnel)</label>
+                <div className={styles.motDePasseInputs}>
                   <div>
                       <div className={styles.InputGroup}>
                         <i className="bi bi-lock" />
@@ -185,7 +182,7 @@ const Parametres: React.FC = () => {
                       {errors.current_password && <span className={styles.fieldError}>{errors.current_password[0]}</span>}
                   </div>
                   
-                  <div>
+                  <div >
                       <div className={styles.InputGroup}>
                         <i className="bi bi-shield-lock" />
                         <input type="password" name="password" placeholder="Nouveau mot de passe" value={form.password} onChange={handleChange} />
@@ -206,6 +203,7 @@ const Parametres: React.FC = () => {
                 {loading ? <span className={layoutStyles.loadingDots}></span> : 'Enregistrer'}
               </button>
             </form>
+            </div>
           </div>
         </div>
       )}
@@ -220,7 +218,7 @@ const Parametres: React.FC = () => {
                 className={styles.authLogoImage} 
               />
             ) : user ? (
-              <div >
+              <div className={styles.authLogoImage} >
                 {user?.nom && user?.prenom 
                   ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}` 
                   : '??'}

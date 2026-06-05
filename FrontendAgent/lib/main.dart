@@ -9,7 +9,7 @@ import 'src/services/notification_service.dart';
 void main() {
   runZonedGuarded(() {
     WidgetsFlutterBinding.ensureInitialized();
-    NotificationService().init();
+     NotificationService().init();
     runApp(
       ChangeNotifierProvider(
         create: (_) => UserProvider(),

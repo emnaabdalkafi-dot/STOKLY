@@ -15,19 +15,19 @@ class Notification extends Model
         'type',
         'id_inventaire',
         'id_article',
-        'id_user',
+        'id_note',
         'contenu',
         'statut',
     ];
 
-    public function user()
-    {
-        return $this->belongsTo(Utilisateur::class, 'id_user');
-    }
-
     public function inventaire()
     {
         return $this->belongsTo(Inventaire::class, 'id_inventaire');
+    }
+
+    public function note()
+    {
+        return $this->belongsTo(Note::class, 'id_note');
     }
 
     public function article()

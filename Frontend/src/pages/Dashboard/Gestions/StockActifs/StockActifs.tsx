@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import api from '../../../services/api';
+import api from '../../../../services/api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../../context/AuthContext';
-import echo from '../../../services/echo';
-import styles from './Gestions.module.css';
-import layoutStyles from '../../../components/layout/layout.module.css';
+import echo from '../../../../services/echo';
+import styles from '../Gestions.module.css';
+import layoutStyles from '../../../../components/layout/layout.module.css';
 import * as XLSX from 'xlsx';
 import {
     ArticleFormModal,
@@ -12,12 +11,13 @@ import {
     ManageSettingsModal,
     ImportExcelWizard,
     BulkAddCategoryModal,
-    BulkAddEntrepotModal
+    BulkAddEntrepotModal,
+    ExportChoiceModal,
+    DeleteArticleModal
 } from './articleModals';
-import { formatCompactNumber, formatCurrency, getCurrencySymbol } from '../../../utils/formatters';
+import { formatCompactNumber, formatCurrency, getCurrencySymbol } from '../../../../utils/formatters';
 
 const StockActifs: React.FC = () => {
-    const { user } = useAuth();
     const navigate = useNavigate();
     const currency = getCurrencySymbol();
 
@@ -36,7 +36,7 @@ const StockActifs: React.FC = () => {
     const [inventaireFilter, setInventaireFilter] = useState('');
 
     // Modals & States
-    const [modalType, setModalType] = useState<'add_article' | 'details_article' | 'manage_categories' | 'manage_entrepots' | 'import_article' | 'add_to_category' | 'add_to_entrepot' | 'delete_article' | null>(null);
+    const [modalType, setModalType] = useState<'add_article' | 'details_article' | 'manage_categories' | 'manage_entrepots' | 'import_article' | 'add_to_category' | 'add_to_entrepot' | 'delete_article' | 'export_choice' | null>(null);
     const [selectedArticle, setSelectedArticle] = useState<any>(null);
     const [excelData, setExcelData] = useState<any[] | null>(null);
 
@@ -125,7 +125,7 @@ const StockActifs: React.FC = () => {
         }
     }, [articles]);
 
-    const handleExportExcel = () => {
+    const generateExportRows = () => {
         const rows: any[] = [];
 
         filteredArticles.forEach(a => {
@@ -185,11 +185,32 @@ const StockActifs: React.FC = () => {
             }
 
         });
+        return rows;
+    };
 
+    const handleExportExcel = () => {
+        const rows = generateExportRows();
         const worksheet = XLSX.utils.json_to_sheet(rows);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Articles");
         XLSX.writeFile(workbook, "StockActifs.xlsx");
+    };
+
+    const handleExportCSV = () => {
+        const rows = generateExportRows();
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+
+        // Add UTF-8 Byte Order Mark (BOM) to support accents correctly in Excel
+        const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "StockActifs.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     };
 
     const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,7 +243,11 @@ const StockActifs: React.FC = () => {
             }
             else setGeneralError("Erreur lors de l'importation");
         } catch (err: any) {
-            setGeneralError(err.response?.data?.message || "Erreur réseau ou serveur");
+            let errorMsg = err.response?.data?.message || "Erreur réseau ou serveur";
+            if (errorMsg.includes('SQLSTATE') || errorMsg.includes('SQL:')) {
+                errorMsg = "Erreur lors de l'importation. Vérifiez vos données.";
+            }
+            setGeneralError(errorMsg);
         }
         finally { setLoading(false); }
     };
@@ -245,6 +270,21 @@ const StockActifs: React.FC = () => {
             })
             .catch(err => setGeneralError(err.response?.data?.message || "Erreur de suppression"))
             .finally(() => setLoading(false));
+    };
+
+    const acceptArticle = async () => {
+        if (!selectedArticle) return;
+        setLoading(true);
+        try {
+            await api.put(`/inventaires/accept-article/${selectedArticle.id_article}`);
+            loadData(true);
+            setModalType(null);
+            setSelectedArticle(null);
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Erreur lors de l'acceptation");
+        } finally {
+            setLoading(false);
+        }
     };
 
     const bulkDeleteArticles = async () => {
@@ -283,10 +323,19 @@ const StockActifs: React.FC = () => {
         api.delete(`/stock/${type}/${id}`).then(() => loadData(true)).catch(console.error);
     };
 
+    const deleteAllSettings = (type: 'categories' | 'entrepots') => {
+        api.delete(`/stock/${type}/delete-all`).then(() => loadData(true)).catch(console.error);
+    };
+
     const filteredArticles = useMemo(() => {
         return articles.filter(a => {
-            if (search && !a.nom.toLowerCase().includes(search.toLowerCase()) && !a.code_barres.toLowerCase().includes(search.toLowerCase())) return false;
-            if (etatFilter && a.etat !== etatFilter) return false;
+if (
+  search &&
+  !(a.nom ?? '').toLowerCase().includes(search.toLowerCase()) &&
+  !(a.code_barres ?? '').toLowerCase().includes(search.toLowerCase())
+) {
+  return false;
+}            if (etatFilter && a.etat !== etatFilter) return false;
             if (categoryFilter && !a.categories.find((c: any) => String(c.id_category) === String(categoryFilter))) return false;
             if (entrepotFilter && !a.entrepots.find((e: any) => String(e.id_entrepot) === String(entrepotFilter))) return false;
             if (inventaireFilter && !a.lignes_inventaire?.some((l: any) => String(l.id_inventaire) === String(inventaireFilter))) return false;
@@ -302,8 +351,6 @@ const StockActifs: React.FC = () => {
     const toggleSelect = (id: number) => {
         setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
     };
-
-    if (!user) return <div className={styles.dashboardLoading}>Chargement...</div>;
 
     return (
         <main className={styles.dashboardMain}>
@@ -324,18 +371,22 @@ const StockActifs: React.FC = () => {
                 entrepots={entrepots}
                 onUpdate={saveArticleFromModal}
                 onReloadSettings={loadData}
+                onReject={() => setModalType('delete_article')}
+                onAccept={acceptArticle}
             />
             <ManageSettingsModal
                 isOpen={modalType === 'manage_categories'} onClose={() => setModalType(null)}
                 type="categories" items={categories}
                 onSave={(data: any) => saveSetting('categories', data)}
                 onDelete={(id: number) => deleteSetting('categories', id)}
+                onDeleteAll={() => deleteAllSettings('categories')}
             />
             <ManageSettingsModal
                 isOpen={modalType === 'manage_entrepots'} onClose={() => setModalType(null)}
                 type="entrepots" items={entrepots}
                 onSave={(data: any) => saveSetting('entrepots', data)}
                 onDelete={(id: number) => deleteSetting('entrepots', id)}
+                onDeleteAll={() => deleteAllSettings('entrepots')}
             />
             <ImportExcelWizard
                 isOpen={modalType === 'import_article'}
@@ -360,34 +411,29 @@ const StockActifs: React.FC = () => {
                 entrepots={entrepots}
                 onConfirm={(data) => attachEntrepotsAPI(selectedIds, data)}
             />
+            <ExportChoiceModal
+                isOpen={modalType === 'export_choice'}
+                onClose={() => setModalType(null)}
+                filteredArticlesCount={filteredArticles.length}
+                onExportExcel={handleExportExcel}
+                onExportCSV={handleExportCSV}
+            />
 
-            {modalType === 'delete_article' && selectedArticle && (
-                <div className={styles.modalOverlay}>
-                    <div className={styles.modalPanel}>
-                        <div style={{ textAlign: 'right' }}>
-                            <button className={styles.dashboardMenuToggle} onClick={() => { setModalType(null); setSelectedArticle(null); }}>
-                                <i className="bi bi-x-lg" />
-                            </button>
-                        </div>
-                        <div className={styles.textAlignCenter}>
-                            {generalError && <div className={styles.authAlert} style={{ marginBottom: '1rem' }}>{generalError}</div>}
-                            <p>Etes-vous sure de vouloir supprimer l'article <strong>{selectedArticle.nom}</strong> ?</p>
-                            <div className={styles.modalFooterCenter}>
-                                <button className={styles.Submit} onClick={deleteArticle} disabled={loading}>
-                                    {loading ? 'Suppression...' : 'Supprimer'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <DeleteArticleModal
+                isOpen={modalType === 'delete_article' && selectedArticle !== null}
+                onClose={() => { setModalType(null); setSelectedArticle(null); }}
+                articleName={selectedArticle?.nom || ''}
+                onDelete={deleteArticle}
+                loading={loading}
+                generalError={generalError}
+            />
 
             <div className={layoutStyles.overviewGrid}>
                 <div className={layoutStyles.statCard}>
                     <div className={layoutStyles.cardIcon}><i className="bi bi-box-seam" /></div>
                     <div className={styles.dashboardCardInfo}>
                         <p className={layoutStyles.dashboardCardTitle}>Total articles / Valeur</p>
-                        <p className={layoutStyles.cardValue} title={`${stats?.total_articles || 0} articles, valeur totale: ${formatCurrency(stats?.valeur_totale_stock || 0, currency, true)}`}>{stats ? formatCompactNumber(stats.total_articles) : <span className={layoutStyles.loadingDots}></span>} <span className={styles.cardSubValue} title={stats?.valeur_totale_stock}>({stats ? formatCurrency(stats.valeur_totale_stock, currency, true) : <span className={layoutStyles.loadingDots}></span>})</span></p>
+                        <p className={layoutStyles.cardValue} title={stats?.total_articles || 0}>{stats ? formatCompactNumber(stats.total_articles) : <span className={layoutStyles.loadingDots}></span>} <span className={styles.cardSubValue} title={stats?.valeur_totale_stock}>({stats ? formatCurrency(stats.valeur_totale_stock, currency, true) : <span className={layoutStyles.loadingDots}></span>})</span></p>
                     </div>
                 </div>
                 <div className={layoutStyles.statCard}>
@@ -397,8 +443,8 @@ const StockActifs: React.FC = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             {stats ? (
                                 <>
-                                    <span style={{ color: '#22c55e', fontSize: '0.9em' }} title={stats?.ecart_positif}>+{formatCompactNumber(stats.ecart_positif || 0)}</span>/
-                                    <span style={{ color: '#ef4444', fontSize: '0.9em' }} title={stats?.ecart_negatif}>{formatCompactNumber(stats.ecart_negatif || 0)}</span>
+                                    <span className={styles.ecartPositive} title={stats?.ecart_positif}>+{formatCompactNumber(stats.ecart_positif || 0)}</span>/
+                                    <span className={styles.ecartNegative} title={stats?.ecart_negatif}>{formatCompactNumber(stats.ecart_negatif || 0)}</span>
                                 </>
                             ) : (
                                 <span className={layoutStyles.loadingDots}></span>
@@ -426,7 +472,7 @@ const StockActifs: React.FC = () => {
                 <div className={styles.dashboardPanelHeader}>
                     <h3>Stock / Articles ({formatCompactNumber(filteredArticles.length)})</h3>
                     <div className={styles.dashboardPanelActions}>
-                        <div className={styles.searchAgents}>
+                        <div className={styles.search}>
                             <i className="bi bi-search" />
                             <input type="text" placeholder="Recherche nom/code..." value={search} onChange={e => setSearch(e.target.value)} className={styles.searchInput} />
                         </div>
@@ -434,10 +480,10 @@ const StockActifs: React.FC = () => {
                         <button className={styles.ActionButton} onClick={() => document.getElementById('import-excel')?.click()}>
                             <i className="bi bi-download" /> Import
                         </button>
-                        <button className={styles.ActionButton} onClick={handleExportExcel}>
+                        <button className={styles.ActionButton} onClick={() => setModalType('export_choice')}>
                             <i className="bi bi-upload" /> Export
                         </button>
-                        <button className={styles.addButton} onClick={() => {
+                        <button className={styles.ActionButton} onClick={() => {
                             setSelectedArticle(null);
                             setModalType('add_article');
                         }}>
@@ -452,32 +498,30 @@ const StockActifs: React.FC = () => {
                         <option value="connu">Connu</option>
                         <option value="inconnu">Inconnu</option>
                     </select>
-                    <div className={styles.filterGroup}>
                         <select className={styles.filterSelect} value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}>
-                            <option value="">Toutes catégories</option>
-                            {categories.map(c => <option key={c.id_category} value={c.id_category}>{c.nom}</option>)}
+                            <option value="">Toutes catégories ({formatCompactNumber(categories.length)})</option>
+                            {categories.map(c => <option title={c.nom} key={c.id_category} value={c.id_category}>{c.nom.length > 15 ? c.nom.substring(0, 15) + '...' : c.nom}</option>)}
                         </select>
                         <button className={styles.ActionButton} onClick={() => setModalType('manage_categories')}><i className="bi bi-gear" /></button>
-                    </div>
-                    <div className={styles.filterGroup}>
+                
+                
                         <select className={styles.filterSelect} value={entrepotFilter} onChange={e => setEntrepotFilter(e.target.value)}>
-                            <option value="">Tous les entrepôts</option>
-                            {entrepots.map(e => <option key={e.id_entrepot} value={e.id_entrepot}>{e.nom}</option>)}
+                            <option value="">Tous les entrepôts ({formatCompactNumber(entrepots.length)})</option>
+                            {entrepots.map(e => <option title={e.nom} key={e.id_entrepot} value={e.id_entrepot}>{e.nom.length > 15 ? e.nom.substring(0, 15) + '...' : e.nom}</option>)}
                         </select>
                         <button className={styles.ActionButton} onClick={() => setModalType('manage_entrepots')}><i className="bi bi-gear" /></button>
-                    </div>
-                    <div className={styles.filterDivider} />
+                 
                     <select className={styles.filterSelect} value={inventaireFilter} onChange={e => setInventaireFilter(e.target.value)}>
-                        <option value="">Tous les inventaires</option>
+                        <option value="">Sélectionner un inventaire</option>
                         {inventaires.map(inv => <option key={inv.id_inventaire} value={inv.id_inventaire}>{inv.titre || inv.site || '—'}</option>)}
                     </select>
                 </div>
 
                 {selectedIds.length > 0 && (
                     <div className={styles.bulkActionBar}>
-                        <p className={styles.bulkActionText}>{selectedIds.length} article(s) sélectionné(s)</p>
-                        <div className={styles.flexRowCenter} style={{ gap: '10px' }}>
-                            <button className={styles.bulkDeleteBtn} onClick={bulkDeleteArticles}>
+                        <p ><i className="bi bi-check2-circle" /> {selectedIds.length} article{selectedIds.length >1 ? 's' : ''} sélectionné{selectedIds.length > 1 ? 's' : ''}</p>
+                        <div >
+                            <button className={styles.DeleteBtn} onClick={bulkDeleteArticles}>
                                 <i className="bi bi-trash" /> Supprimer
                             </button>
                             <button className={styles.ActionButton} onClick={() => setModalType('add_to_entrepot')}>
@@ -491,7 +535,7 @@ const StockActifs: React.FC = () => {
                     </div>
                 )}
 
-                <div className={layoutStyles.tableWrap}>
+                <div className={styles.dashboardTableWrap }>
                     <table className={styles.dashboardTable}>
                         <thead>
                             <tr>
@@ -510,10 +554,17 @@ const StockActifs: React.FC = () => {
                             </tr>
                         </thead>
                         {loading ? (
-                            <tbody><tr><td colSpan={8} className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></td></tr></tbody>
-                        ) : filteredArticles.length === 0 ? (
-                            <tbody><tr><td colSpan={10} className={styles.tableEmptyMsg}>Aucun article trouvé</td></tr></tbody>
-                        ) : (
+                            <tbody>
+                                <tr >
+                                    {Array.from({ length: 8 }).map((_, index) => (
+                                        <td key={index} >
+                                            <span className={layoutStyles.loadingDots}></span>
+                                        </td>
+                                    ))}
+                                </tr>
+                            </tbody>) : filteredArticles.length === 0 ? (
+                                <tbody><tr><td colSpan={10} className={styles.tableEmptyMsg}>Aucun article trouvé</td></tr></tbody>
+                            ) : (
                             <tbody>
                                 {filteredArticles.map((item: any) => {
                                     let qteComptee: any = null;
@@ -533,7 +584,12 @@ const StockActifs: React.FC = () => {
                                         const l = item.lignes_inventaire?.find((lign: any) => String(lign.id_inventaire) === String(inventaireFilter));
                                         if (l && l.quantite_comptee !== null) {
                                             qteComptee = l.quantite_comptee;
-                                            ecart = l.ecart;
+                                            const theorique = l.quantite_theorique !== undefined ? Number(l.quantite_theorique) : Number(qteTheorequeLocale);
+                                            if (Number(l.quantite_comptee) === 0 || Number(l.quantite_comptee) === theorique) {
+                                                ecart = 0;
+                                            } else {
+                                                ecart = l.ecart;
+                                            }
                                         }
                                         else {
                                             qteComptee = 'Non scanné';
@@ -551,27 +607,37 @@ const StockActifs: React.FC = () => {
                                                     onChange={() => toggleSelect(item.id_article)} />
                                             </td>
                                             <td><strong>{item.code_barres}</strong></td>
-                                            <td>{item.nom}</td>
+                                            <td title={item.nom}>{item.nom?.length > 15 ? item.nom.substring(0, 20) + '...' : item.nom}</td>
                                             <td title={item.prix}>{formatCurrency(item.prix, currency, true)}</td>
-                                            <td>{item.categories?.map((c: any) => c.nom).join(', ') || '—'}</td>
-                                            <td className={styles.warehouseCell}>
+                                            <td title={item.categories?.map((c: any) => '- ' + c.nom).join('\n') || '—'}>
+                                                <span >
+                                                    {item.categories?.[0]
+                                                        ? `${item.categories[0].nom.length > 15 ? item.categories[0].nom.substring(0, 15) + '...' : item.categories[0].nom}`
+                                                        : '—'}
+                                                </span>
+                                                {item.categories?.length > 1 && (
+                                                    <span >
+                                                        ...+{item.categories.length - 1}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td >
                                                 <div
-                                                    className={styles.warehouseWrapper}
                                                     title={item.entrepots?.map((e: any) => `${e.nom} (${e.pivot?.quantite || 0})`).join('\n') || '—'}
                                                 >
-                                                    <span className={styles.mainWarehouse}>
+                                                    <span >
                                                         {item.entrepots?.[0]
                                                             ? `${item.entrepots[0].nom} (${formatCompactNumber(item.entrepots[0].pivot?.quantite || 0)})`
                                                             : '—'}
                                                     </span>
 
                                                     {item.entrepots?.length > 1 && (
-                                                        <span className={styles.moreBadge}>
+                                                        <span >
                                                             ...+{item.entrepots.length - 1}
                                                         </span>
                                                     )}
                                                 </div>
-                                            </td>                                            <td title={String(item.quantite_total || 0)}><span className={styles.countBadge} >{formatCompactNumber(item.quantite_total || 0)}</span></td>
+                                            </td>                                            <td title={String(qteTheorequeLocale)}><span className={styles.countBadge} >{formatCompactNumber(qteTheorequeLocale)}</span></td>
                                             {inventaireFilter && <td title={String(qteComptee)}><span className={styles.countBadge}>{typeof qteComptee === 'number' ? formatCompactNumber(qteComptee) : qteComptee}</span></td>}
                                             {inventaireFilter && <td title={ecart} >
                                                 {ecart === '-' ? '-' : (
@@ -581,12 +647,12 @@ const StockActifs: React.FC = () => {
                                                 )}
                                             </td>}
                                             <td>
-                                                <div className={styles.flexRowCenter} style={{ gap: '5px' }}>
+                                                <div >
                                                     <button className={styles.ActionButton} onClick={() => {
                                                         setSelectedArticle(item);
                                                         setModalType('details_article');
                                                     }}>Détails</button>
-                                                    <button className={`${styles.ActionButton} ${styles.deleteButton}`} onClick={() => {
+                                                    <button className={styles.DeleteBtn} onClick={() => {
                                                         setSelectedArticle(item);
                                                         setModalType('delete_article');
                                                     }}>Supprimer</button>

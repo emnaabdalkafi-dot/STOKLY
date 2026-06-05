@@ -19,7 +19,6 @@ api.interceptors.response.use(
   (error) => {
     if (error.response && (error.response.status === 401 || error.response.status === 403)) {
       localStorage.removeItem('token');
-      // Use window.location to force a redirect to login if the context isn't available
       if (window.location.pathname !== '/') {
         window.location.href = '/';
       }
@@ -29,3 +28,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+export const WS_HOST = '192.168.1.181';

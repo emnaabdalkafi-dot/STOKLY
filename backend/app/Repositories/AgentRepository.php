@@ -11,9 +11,7 @@ use Illuminate\Support\Str;
 
 class AgentRepository
 {
-    // ─────────────────────────────────────────
-    //  LIST + FILTERS
-    // ─────────────────────────────────────────
+   
     public function searchAgents($filters = [])
     {
         $query = User::where('role', 'agent')
@@ -58,9 +56,7 @@ class AgentRepository
         return $agents;
     }
 
-    // ─────────────────────────────────────────
-    //  FIND BY ID
-    // ─────────────────────────────────────────
+  
     public function findAgentById($id)
     {
         $agent = User::with(['affectations.inventaire'])
@@ -74,16 +70,15 @@ class AgentRepository
         return $agent;
     }
 
-    // ─────────────────────────────────────────
     //  COMPUTED STATS PER AGENT
-    // ─────────────────────────────────────────
+   
     private function appendStats($agent)
     {
-        // Status: actif si au moins une affectation active
+        // Status
         $agent->statut = $agent->affectations
             ->contains('statut_participation', 'actif') ? 'actif' : 'inactif';
 
-        // Nombre d'inventaires distincts assignés
+        // Nombre d'inventaires assignés
         $agent->inventaires_count = $agent->affectations
             ->pluck('id_inventaire')
             ->unique()
@@ -108,13 +103,13 @@ class AgentRepository
             ];
         })->filter()->values();
 
-        // Liste des titres d'inventaires assignés (keep for backward compat)
+        // Liste des titres d'inventaires 
         $agent->inventaires_list = $agent->inventaires_details->pluck('titre')->toArray();
 
         // Articles complétées :
         // Nombre de scans effectués par l'agent pour les inventaires actifs
-        $activeInventaireIds = $agent->affectations
-            ->where('statut_participation', 'actif')
+        $activeInventaireIds = DB::table('inventaires')
+            ->where('statut','en cours')
             ->pluck('id_inventaire');
 
         $activeLigneIds = DB::table('ligne_inventaires')
@@ -155,19 +150,17 @@ class AgentRepository
             ->count();
     }
 
-    // ─────────────────────────────────────────
+    
     //  GLOBAL STATS (cards)
-    // ─────────────────────────────────────────
+ 
     public function getStats()
     {
         $totalAgents = User::where('role', 'agent')->count();
 
-        // Agents assignés : ceux qui ont au moins une affectation (n'importe quel statut)
         $assignedCount = DB::table('affectations')
             ->distinct()
             ->count('id_agent');
 
-        // Agents actifs : ceux qui ont au moins une affectation 'actif'
         $activeCount = DB::table('affectations')
             ->where('statut_participation', 'actif')
             ->distinct()
@@ -177,7 +170,6 @@ class AgentRepository
             ? round(($assignedCount / $totalAgents) * 100)
             : 0;
 
-        // Meilleur agent : celui avec le plus de scans effectués
         $meilleurRaw = DB::table('scans')
             ->select('id_agent', DB::raw('COUNT(*) as total_quantite'))
             ->groupBy('id_agent')
@@ -207,9 +199,7 @@ class AgentRepository
         ];
     }
 
-    // ─────────────────────────────────────────
-    //  CREATE
-    // ─────────────────────────────────────────
+    //crée agent
     public function createAgent($data)
     {
         return User::create([
@@ -261,23 +251,7 @@ class AgentRepository
         return true;
     }
 
-    // ─────────────────────────────────────────
-    //  ASSIGN / REMOVE INVENTORY
-    // ─────────────────────────────────────────
-    public function assignInventory($agentId, $inventaireId, $statut = 'actif')
-    {
-        return Affectation::updateOrCreate(
-            ['id_agent' => $agentId, 'id_inventaire' => $inventaireId],
-            ['statut_participation' => $statut]
-        );
-    }
 
-    public function removeAssignment($agentId, $inventaireId)
-    {
-        return Affectation::where('id_agent', $agentId)
-            ->where('id_inventaire', $inventaireId)
-            ->delete();
-    }
 public function findByEmail($email)
     {
         return User::where('email', $email)->first();

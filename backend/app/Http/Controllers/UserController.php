@@ -23,9 +23,11 @@ class UserController extends Controller
             'nom'              => 'sometimes|string|max:255',
             'prenom'           => 'sometimes|string|max:255',
             'email'            => 'sometimes|email|unique:utilisateurs,email,' . $user->id,
-            'tel'              => 'nullable|string|max:20',
+            'tel'              => 'nullable|digits:8',
             'password'         => 'nullable|string|min:6|confirmed',
             'current_password' => 'nullable|string',
+        ], [
+            'tel.digits' => 'Le numéro de téléphone doit contenir exactement 8 chiffres.',
         ]);
 
         if ($validator->fails()) {

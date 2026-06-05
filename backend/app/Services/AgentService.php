@@ -43,22 +43,13 @@ public function createAgent($data)
     $data['password'] = $plainPassword;
     $agent = $this->agentRepository->createAgent($data);
     
-    // Envoyer l'email avec le mot de passe
     try {
         Mail::to($agent->email)->send(new AgentRegistered($agent, $plainPassword));
     } catch (\Exception $e) {
         \Log::error("Erreur lors de l'envoi de l'email à l'agent : " . $e->getMessage());
     }
-
-    if (!empty($data['inventaire_id'])) {
-        $this->agentRepository->assignInventory(
-            $agent->id,
-            $data['inventaire_id'],
-            $data['statut_participation'] ?? 'actif'
-        );
-    }
     return [
-        'agent' => $agent->load('affectations.inventaire'),
+        'agent' => $agent,
         'password' => $plainPassword
     ];
 }
@@ -69,14 +60,6 @@ public function createAgent($data)
 
         if (!$agent) return null;
 
-        if (!empty($data['inventaire_id'])) {
-            $this->agentRepository->assignInventory(
-                $id,
-                $data['inventaire_id'],
-                $data['statut_participation'] ?? 'actif'
-            );
-        }
-
         return $agent;
     }
 
@@ -85,19 +68,7 @@ public function createAgent($data)
         return $this->agentRepository->deleteAgent($id);
     }
 
-    public function assignInventory($agentId, $inventaireId, $statut = 'actif')
-    {
-        $agent = $this->agentRepository->findAgentById($agentId);
-
-        if (!$agent) return null;
-
-        return $this->agentRepository->assignInventory($agentId, $inventaireId, $statut);
-    }
-
-    public function removeAssignment($agentId, $inventaireId)
-    {
-        return $this->agentRepository->removeAssignment($agentId, $inventaireId);
-    }
+   
 public function login($email, $password)
 {
     try {

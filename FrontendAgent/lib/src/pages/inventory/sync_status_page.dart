@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../constants/app_colors.dart';
 import '../../services/inventory_service.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class SyncStatusPage extends StatefulWidget {
   final int inventoryId;
@@ -42,24 +43,12 @@ class _SyncStatusPageState extends State<SyncStatusPage> {
   Widget build(BuildContext context) {
     final unsyncedCount = _stats['unsyncedCount'] ?? 0;
     final totalArticles = _stats['totalArticles'] ?? 0;
-    final syncedCount = _stats['syncedCount'] ?? 0;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          children: [
-            const Text('Synchronisation', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(widget.inventoryTitle, style: const TextStyle(color: AppColors.accent, fontSize: 10, fontWeight: FontWeight.w500)),
-          ],
-        ),
-        centerTitle: true,
+      appBar: CustomAppBar(
+        title: 'Synchronisation ${widget.inventoryTitle}',
+     
       ),
       body: Container(
         width: double.infinity,
@@ -79,47 +68,12 @@ class _SyncStatusPageState extends State<SyncStatusPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 10),
-                    // Status Overview Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5))],
-                      ),
-                      child: Column(
-                        children: [
-                          Icon(
-                            unsyncedCount == 0 ? Icons.cloud_done_rounded : Icons.sync_rounded,
-                            size: 64,
-                            color: unsyncedCount == 0 ? const Color(0xFF10B981) : AppColors.accent,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            unsyncedCount == 0 ? 'Données Synchronisées' : 'Synchronisation en cours',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            unsyncedCount == 0 
-                              ? 'Toutes vos données sont en sécurité sur le cloud.'
-                              : 'Certains scans sont en attente de téléchargement.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
+                   
                     
-                    const SizedBox(height: 32),
-                    const Text('STATISTIQUES DE SESSION', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 1.2)),
                     const SizedBox(height: 16),
                     
-                    _buildStatCard('Articles en local', '$totalArticles', Icons.inventory_2_outlined, const Color(0xFF6366F1)),
-                    _buildStatCard('Scans effectués', '$syncedCount', Icons.check_circle_outline_rounded, const Color(0xFF10B981)),
-                    _buildStatCard('En attente de cloud', '$unsyncedCount', Icons.cloud_upload_outlined, const Color(0xFFF59E0B)),
+                    _buildStatCard('Articles en local', '$totalArticles', Icons.inventory_2_outlined, AppColors.primary),
+                    _buildStatCard('Articles en attente de synchronisation', '$unsyncedCount', Icons.cloud_upload_outlined, AppColors.primary),
                     
                     const Spacer(),
                     
@@ -153,10 +107,10 @@ class _SyncStatusPageState extends State<SyncStatusPage> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 2,
                         ),
-                        child: const Text('ACTUALISER LE STATUT', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
+                        child: const Text('Actualiser les données', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)),
                       ),
                     ),
                   ],
@@ -169,29 +123,21 @@ class _SyncStatusPageState extends State<SyncStatusPage> {
 
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5)],
-      ),
+      margin: const EdgeInsets.only(bottom: 5),
+      padding: const EdgeInsets.all(5),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
+            padding: const EdgeInsets.all(1),
+           
+            child: Icon(icon, color: color, size: 18),
           ),
-          const SizedBox(width: 16),
-          Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 14, fontWeight: FontWeight.w500)),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(color: AppColors.primary, fontSize: 14, fontWeight: FontWeight.w500)),
           const Spacer(),
           Text(
             value,
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color),
           ),
         ],
       ),

@@ -8,24 +8,19 @@ import '../../providers/user_provider.dart';
 import '../profile/profile_view_page.dart';
 import '../inventory/inventory_details_page.dart';
 import 'notifications_page.dart';
-
+import '../../widgets/custom_app_bar.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
-
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 1;
   int _unreadCount = 0;
   final WebSocketService _wsService = WebSocketService();
   final NotificationService _notificationService = NotificationService();
-
   final GlobalKey<_InventoryListPageState> _inventoryListKey = GlobalKey<_InventoryListPageState>();
-
   late final List<Widget> _pages;
-
   @override
   void initState() {
     super.initState();
@@ -37,7 +32,6 @@ class _HomePageState extends State<HomePage> {
     _initWebSocket();
     _fetchUnreadCount();
   }
-
   Future<void> _fetchUnreadCount() async {
     final result = await _notificationService.getNotifications();
     if (result['success'] == true && mounted) {
@@ -47,9 +41,7 @@ class _HomePageState extends State<HomePage> {
       });
     }
   }
-
   final Map<int, String> _knownStatuses = {};
-
   Future<void> _initWebSocket() async {
     final user = Provider.of<UserProvider>(context, listen: false).user;
     if (user != null && user['id'] != null) {
@@ -79,7 +71,6 @@ class _HomePageState extends State<HomePage> {
       );
     }
   }
-
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -89,14 +80,19 @@ class _HomePageState extends State<HomePage> {
       _fetchUnreadCount();
     }
   }
-
   @override
   Widget build(BuildContext context) {
+    String title = '';
+    if (_selectedIndex == 0) title = 'Notifications';
+    else if (_selectedIndex == 1) title = 'Liste des inventaires';
+    else title = 'Profil';
     return Scaffold(
       backgroundColor: AppColors.backgroundStart,
-      body: SafeArea(
-        child: _pages[_selectedIndex],
+            appBar: CustomAppBar(
+        title: title,
+        showBackButton: false,
       ),
+      body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
@@ -119,15 +115,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
 class InventoryListPage extends StatefulWidget {
   final VoidCallback? onRefresh;
   const InventoryListPage({super.key, this.onRefresh});
-
   @override
   State<InventoryListPage> createState() => _InventoryListPageState();
 }
-
 class _InventoryListPageState extends State<InventoryListPage> {
   String _selectedStatus = '';
   final TextEditingController _searchController = TextEditingController();
@@ -135,13 +128,11 @@ class _InventoryListPageState extends State<InventoryListPage> {
   List<dynamic> _inventories = [];
   bool _isLoading = true;
   String? _errorMessage;
-
   @override
   void initState() {
     super.initState();
     _fetchInventories();
   }
-
   Future<void> _fetchInventories() async {
     setState(() {
       _isLoading = true;
@@ -164,7 +155,6 @@ class _InventoryListPageState extends State<InventoryListPage> {
       if (widget.onRefresh != null) widget.onRefresh!();
     }
   }
-
   String _formatDate(String? iso) {
     if (iso == null || iso.isEmpty) return '—';
     try {
@@ -174,7 +164,6 @@ class _InventoryListPageState extends State<InventoryListPage> {
       return iso;
     }
   }
-
   Color _statusColor(String? statut) {
 switch (statut) {
   case 'en cours':
@@ -190,7 +179,6 @@ switch (statut) {
     return Colors.grey;
 }
   }
-
   String _typeLabel(Map<String, dynamic> item) {
     final type = item['type_source'] ?? '';
     if (type == 'tous') return 'Tous les articles';
@@ -204,7 +192,6 @@ switch (statut) {
     }
     return type;
   }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -220,21 +207,6 @@ switch (statut) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Liste des inventaires', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(7), // Increased from 5
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: 30,
-                    height: 30,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
@@ -325,7 +297,6 @@ switch (statut) {
       ),
     );
   }
-
   Widget _filterChip(String label, bool isSelected, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -343,11 +314,9 @@ switch (statut) {
       ),
     );
   }
-
   Widget _inventoryCard(dynamic item) {
     final statut = item['statut'] ?? 'en attente';
     final statusColor = _statusColor(statut);
-
     return GestureDetector(
       onTap: () async {
         final inventoryId = item['id_inventaire'];
@@ -390,7 +359,6 @@ switch (statut) {
     ),
     
     const SizedBox(width: 8), 
-
    
     Container(
       width: 8,

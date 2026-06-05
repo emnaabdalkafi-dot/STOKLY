@@ -27,6 +27,7 @@ class DashboardService
             'analyse_ecarts' => $this->repository->getGapAnalysis($invId),
             'resume_rapide' => $this->repository->getQuickSummary($invId),
             'performance_agents' => $this->repository->getAgentPerformance($invId),
+            'ecarts_list' => $this->repository->getEcartsList($invId),
             'inventories_list' => $this->repository->getInventories(), // Always global
             'recent_activities' => $this->repository->getRecentActivities($invId),
         ];

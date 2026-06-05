@@ -1,6 +1,6 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
-
+import  { WS_HOST } from './api';
 // Expose Pusher globally (required by Laravel Echo)
 (window as any).Pusher = Pusher;
 
@@ -16,13 +16,13 @@ const createEcho = (): any => {
   return new Echo({
     broadcaster: 'reverb',
     key: 'p4gucxacg2eug5fsjcpr',
-    wsHost: '192.168.1.181',
+    wsHost: WS_HOST,
     wsPort: 8080,
     wssPort: 8080,
     forceTLS: false,
     disableStats: true,
     enabledTransports: ['ws', 'wss'],
-    authEndpoint: 'http://192.168.1.181:8000/api/broadcasting/auth',
+    authEndpoint: `http://${WS_HOST}:8000/api/broadcasting/auth`,
     auth: {
       headers: {
         Authorization: `Bearer ${token}`,

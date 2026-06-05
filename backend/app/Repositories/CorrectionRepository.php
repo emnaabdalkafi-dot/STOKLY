@@ -8,13 +8,19 @@ class CorrectionRepository
 {
     public function getAll($statut = null)
     {
-        $query = Correction::with(['ligne.article', 'ligne.inventaire', 'agent']);
+        $query = Correction::with(['ligne.article', 'ligne.inventaire', 'ligne.entrepot', 'agent']);
 
-        if ($statut) {
-            $query->where('statut_validation', $statut);
-        }
+        // Par défaut, uniquement les corrections en attente
+        $query->where('statut_validation', $statut ?? 'en attente');
 
         return $query->orderByDesc('created_at')->get();
+    }
+
+    public function delete($id)
+    {
+        $correction = $this->findById($id);
+        $correction->delete();
+        return true;
     }
 
     public function findById($id)

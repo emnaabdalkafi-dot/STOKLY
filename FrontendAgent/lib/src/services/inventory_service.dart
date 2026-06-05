@@ -261,9 +261,40 @@ class InventoryService {
     }
   }
 
-  /// POST correction (placeholder)
-  Future<Map<String, dynamic>> submitCorrection({required int inventoryId, required int quantity, required String remark}) async {
-    return {'success': true, 'message': 'Demande de correction envoyée'};
+  /// POST correction
+  Future<Map<String, dynamic>> submitCorrection({
+    required int ligneInventaireId,
+    required int quantity,
+    required String remark,
+    String? articleCode,
+    int? entrepotId,
+  }) async {
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/corrections'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'id_ligne_inventaire': ligneInventaireId,
+          'qte': quantity,
+          'description': remark,
+          if (articleCode != null) 'article_code': articleCode,
+          if (entrepotId != null) 'id_entrepot': entrepotId,
+        }),
+      );
+
+      final data = json.decode(response.body);
+      if (response.statusCode == 201) {
+        return {'success': true, 'message': data['message'] ?? 'Demande de correction envoyée', 'data': data['data']};
+      }
+      return {'success': false, 'message': data['message'] ?? 'Erreur ${response.statusCode}'};
+    } catch (e) {
+      return {'success': false, 'message': 'La connexion Internet est interrompue. Veuillez vérifier votre réseau.'};
+    }
   }
 
   /// ========== OFFLINE-FIRST METHODS ==========

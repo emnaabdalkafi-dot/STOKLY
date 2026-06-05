@@ -9,15 +9,14 @@ import '../../services/inventory_service.dart';
 import '../../services/sync_service.dart';
 import '../../services/database_service.dart';
 import 'inventory_details_page.dart';
-
 class PauseMenuPage extends StatelessWidget {
   final int inventoryId;
+  final int? selectedEntrepotId;
   final InventoryService _inventoryService = InventoryService();
   final SyncService _syncService = SyncService();
   final DatabaseService _db = DatabaseService();
   
-  PauseMenuPage({super.key, required this.inventoryId});
-
+  PauseMenuPage({super.key, required this.inventoryId, this.selectedEntrepotId});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,7 +37,6 @@ class PauseMenuPage extends StatelessWidget {
                  final list = snapshot.data?['data'] as List?;
                  currentInv = list?.firstWhere((inv) => inv['id_inventaire'] == inventoryId, orElse: () => null);
               }
-
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Column(
@@ -158,7 +156,10 @@ class PauseMenuPage extends StatelessWidget {
                             'Corrections',
                             'Rectifier une erreur',
                             Icons.edit_note_rounded,
-                            () => Navigator.push(context, MaterialPageRoute(builder: (context) => CorrectionPage(inventoryId: inventoryId))),
+                            () => Navigator.push(context, MaterialPageRoute(builder: (context) => CorrectionPage(
+                              inventoryId: inventoryId,
+                              selectedEntrepotId: selectedEntrepotId,
+                            ))),
                           ),
                           _buildMenuCard(
                             context,
@@ -214,7 +215,6 @@ class PauseMenuPage extends StatelessWidget {
       ),
     );
   }
-
   Widget _buildMenuCard(BuildContext context, String title, String subtitle, IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
@@ -259,7 +259,6 @@ class PauseMenuPage extends StatelessWidget {
       ),
     );
   }
-
   Future<void> _handleStopInventory(BuildContext context) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -273,7 +272,6 @@ class PauseMenuPage extends StatelessWidget {
         ],
       ),
     );
-
     if (confirm != true) return;
     if (!context.mounted) return;
     
@@ -282,7 +280,6 @@ class PauseMenuPage extends StatelessWidget {
       barrierDismissible: false,
       builder: (ctx) => const Center(child: CircularProgressIndicator(color: AppColors.accent)),
     );
-
     try {
       await _syncService.syncInventaireScans(inventoryId);
       final stopResult = await _inventoryService.stopInventaire(inventoryId);

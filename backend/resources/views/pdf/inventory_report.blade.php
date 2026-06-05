@@ -98,14 +98,19 @@
             <thead>
                 <tr>
                     <th>Article</th>
-                    <th>Agents & Quantités scannées</th>
+                    <th>Entrepôt</th>
+                    <th>Agents & Email</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($lignes_details as $ligne)
-                @if($ligne['agents_contrib'])
+                @if(!empty($ligne['agents_contrib']))
                 <tr>
-                    <td>{{ $ligne['nom'] }}</td>
+                    <td>
+                        <strong>{{ $ligne['nom'] }}</strong><br>
+                        <small>{{ $ligne['code_barres'] }}</small>
+                    </td>
+                    <td>{{ $ligne['entrepot'] ?? 'Global' }}</td>
                     <td>{{ $ligne['agents_contrib'] }}</td>
                 </tr>
                 @endif
@@ -116,13 +121,13 @@
 
     @if(count($corrections) > 0)
     <div class="section">
-        <h2>Demandes de Correction</h2>
+        <h2>Demandes de Correction validées</h2>
         <table>
             <thead>
                 <tr>
                     <th>Date</th>
                     <th>Article</th>
-                    <th>Agent</th>
+                    <th>Agent (Email)</th>
                     <th>Ancienne Qte</th>
                     <th>Nouvelle Qte</th>
                     <th>Statut</th>

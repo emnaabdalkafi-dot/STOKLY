@@ -10,49 +10,51 @@ import echo from '../../services/echo';
 
 function MainLayout() {
   const [toast, setToast] = useState<{ message: string; type: string; inventoryId?: number; articleId?: number } | null>(null);
+
   const navigate = useNavigate();
 
   useEffect(() => {
     const channel = echo.private('admin');
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-    channel.listen('.article.propose', (e: any) => {
-      if (e.id_agent === currentUser.id) return; // Skip self
-      setToast({ 
-        message: e.message || `Nouvel article proposé: ${e.nom}`, 
-        type: 'article',
-        inventoryId: e.inventaire_id,
-        articleId: e.article_id
-      });
-    });
-
-    channel.listen('.note.added', (e: any) => {
-      if (e.user?.id === currentUser.id) return; // Skip self
-      setToast({ 
-        message: `Nouvelle note: ${e.contenu.substring(0, 50)}...`, 
-        type: 'note',
-        inventoryId: e.id_inventaire 
-      });
-    });
-
-    channel.listen('.agent.status.updated', (e: any) => {
-      setToast({ 
-        message: `Alerte: Un agent est devenu inactif sur l'inventaire ${e.titre}`, 
-        type: 'alert',
-        inventoryId: e.inventaire_id 
-      });
+    channel.listen('.notification.created', (e: any) => {
+      const notif = e.notification;
+      if (!notif) return;
+      
+      const type = notif.type;
+      
+      // We only show alerts for specific types requested by the user
+      const alertTypes = ['article', 'article inconnu', 'demande de correction', 'nouvelle note', 'inventaire en cours', 'inventaire depasse le date fin'];
+      
+      if (alertTypes.includes(type)) {
+        // Exclude our own notes
+        if (type === 'nouvelle note' && notif.note?.id_user === currentUser.id) return;
+        
+        let toastType = 'info';
+        if (type === 'article' || type === 'article inconnu' || type === 'inventaire depasse le date fin') toastType = 'danger';
+        else if (type === 'demande de correction') toastType = 'warning';
+        else if (type === 'inventaire en cours') toastType = 'success';
+        
+        setToast({
+          message: notif.contenu || type,
+          type: toastType,
+          inventoryId: notif.id_inventaire,
+          articleId: notif.id_article
+        });
+      }
     });
 
     return () => {
-      channel.stopListening('.article.propose');
-      channel.stopListening('.note.added');
-      channel.stopListening('.agent.status.updated');
+      channel.stopListening('.notification.created');
     };
   }, []);
 
   const handleToastClick = () => {
-    if (toast?.type === 'article' && toast.articleId) {
+    if ((toast?.type === 'danger' || toast?.type === 'article') && toast?.articleId) {
       navigate(`/stock-actifs?action=details&id_article=${toast.articleId}`);
+      setToast(null);
+    } else if (toast?.type === 'warning' && toast?.inventoryId) {
+      navigate(`/inventaires?action=correctionRequests`);
       setToast(null);
     } else if (toast?.inventoryId) {
       navigate(`/inventaires?action=notes&id_inventaire=${toast.inventoryId}`);
@@ -62,7 +64,7 @@ function MainLayout() {
 
   useEffect(() => {
     if (toast) {
-      const timer = setTimeout(() => setToast(null), 12000); // Increased to 12s
+      const timer = setTimeout(() => setToast(null), 12000);  
       return () => clearTimeout(timer);
     }
   }, [toast]);
@@ -136,40 +138,20 @@ const getBreadcrumb = () => {
       <SidebarRight isOpen={sidebarRightOpen} onToggle={handleToggleSidebarRight} />
 
       {toast && (
-        <div 
-          className={`${styles.alertBox} ${toast.type === 'article' ? styles.alertBoxRed : styles.alertBoxGreen}`} 
-          style={{ 
-            position: 'fixed',
-            top: '20px', 
-            right: '20px', 
-            bottom: 'auto', 
-            left: 'auto',
-            animation: 'slideInRight 0.5s ease-out forwards',
-            zIndex: 9999,
-            cursor: 'pointer',
-            maxWidth: '350px'
-          }}
+          <div 
+          className={`${styles.toastBox} ${toast.type === 'danger' ? styles.alertBoxRed : styles.alertBoxGreen}`} 
+          
           onClick={handleToastClick}
         >
           <i className={`bi bi-x ${styles.alertClose}`} onClick={(e) => { e.stopPropagation(); setToast(null); }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ 
-              width: '40px', 
-              height: '40px', 
-              borderRadius: '50%', 
-              backgroundColor: toast.type === 'article' ? '#ef4444' : '#22c55e',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white'
-            }}>
-              <i className={`bi ${toast.type === 'article' ? 'bi-exclamation-triangle' : 'bi-chat-dots'}`} style={{ color: 'white' }} />
+          <div >
+            <div className={styles.toastTitle}>
+              <i className={`bi ${toast.type === 'danger' ? 'bi-exclamation-triangle' : 'bi-chat-dots'}`} style={{ color: 'white' }} />
+               {toast.type === 'danger' ? 'Alerte Critique' : 'Nouvelle Communication'}
+
             </div>
             <div style={{ flex: 1 }}>
-              <h5 style={{ margin: 0, fontSize: '0.85rem', fontWeight: 600 }}>
-                {toast.type === 'article' ? 'Alerte Critique' : 'Nouvelle Communication'}
-              </h5>
-              <p style={{ margin: '2px 0 0', fontSize: '0.75rem', color: '#4b5563' }}>{toast.message}</p>
+              <p className={styles.toastDesc}>{toast.message}</p>
             </div>
           </div>
         </div>

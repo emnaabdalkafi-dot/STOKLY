@@ -190,8 +190,13 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
           setState(() => _isScanning = false);
           
           if (isUnknown && canAdd) {
-            // Propose adding the article
-            _showUnknownArticleDialog(barcode.trim(), quantite);
+            final localArticle = await _db.getArticleByBarcode(barcode.trim());
+            if (localArticle != null && widget.selectedEntrepotId != null && localArticle['id_entrepot'] != widget.selectedEntrepotId) {
+              _showWrongWarehouseDialog(barcode.trim(), quantite, localArticle['nom']);
+            } else {
+              // Propose adding the article
+              _showUnknownArticleDialog(barcode.trim(), quantite);
+            }
           } else {
             _handleOfflineScan(barcode.trim(), quantite: quantite);
           }
@@ -216,6 +221,14 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
         if (mounted) {
           setState(() => _isScanning = false);
           _showErrorDialog('Article non trouvé\n(Mode offline: Articles non téléchargés)');
+        }
+        return;
+      }
+      
+      if (widget.selectedEntrepotId != null && article['id_entrepot'] != widget.selectedEntrepotId) {
+        if (mounted) {
+          setState(() => _isScanning = false);
+          _showWrongWarehouseDialog(barcode, quantite, article['nom']);
         }
         return;
       }
@@ -265,24 +278,107 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     }
   }
 
+  void _showWrongWarehouseDialog(String barcode, int quantite, String articleName) {
+    _scannerController.stop();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              title: Column(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 32),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Mauvais entrepôt',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.orange, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'L\'article "$articleName" ($barcode) existe dans l\'inventaire mais pas dans cet entrepôt.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Voulez-vous l\'y ajouter ?',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () {
+                    Navigator.pop(ctx);
+                    _scannerController.start();
+                  },
+                  child: const Text('ANNULER', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting ? null : () async {
+                    setModalState(() => isSubmitting = true);
+                    final result = await _inventoryService.proposeArticle(
+                      inventaireId: widget.inventoryId,
+                      codeBarres: barcode,
+                      nom: articleName,
+                      quantite: quantite,
+                      idEntrepot: widget.selectedEntrepotId,
+                    );
+                    
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                      if (result['success'] == true) {
+                        setState(() {
+                          _snackMessage = '$barcode + $quantite';
+                          _lastScannedArticleName = articleName;
+                          _lastBarcode = barcode;
+                          _lastScanTime = DateTime.now();
+                          Future.delayed(const Duration(seconds: 3), () {
+                            if (mounted) setState(() => _snackMessage = null);
+                          });
+                        });
+                      } else {
+                        _showErrorDialog(result['message'] ?? 'Erreur lors de l\'ajout.');
+                      }
+                      _scannerController.start();
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                  child: isSubmitting 
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Text('AJOUTER', style: TextStyle(color: Colors.white, fontSize: 13)),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
+
   void _showUnknownArticleDialog(String barcode, int quantite) {
     _scannerController.stop();
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
         title: Column(
           children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.qr_code_scanner, color: Colors.orange.shade700, size: 36),
-            ),
+           
             const SizedBox(height: 10),
             const Text(
               'Article non trouvé',
@@ -305,13 +401,11 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
               decoration: BoxDecoration(
                 color: AppColors.backgroundStart,
                 borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.blue.shade100),
+                border: Border.all(color: AppColors.primary),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.barcode_reader, size: 16, color: AppColors.primary),
-                  const SizedBox(width: 8),
                   Text(
                     barcode,
                     style: const TextStyle(
@@ -350,7 +444,6 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                     Navigator.pop(ctx);
                     _showProposeArticleForm(barcode, quantite);
                   },
-                  icon: const Icon(Icons.add, size: 16),
                   label: const Text('AJOUTER'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
@@ -368,34 +461,42 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     );
   }
 
-  void _showProposeArticleForm(String barcode, int quantite) {
-    final nomController = TextEditingController();
-    bool isSubmitting = false;
-    int? selectedEntrepotId = widget.selectedEntrepotId ?? widget.inventoryData?['id_entrepot'];
-    
-    // If it's a global inventory and no specific warehouse was passed, default to first
-    if (selectedEntrepotId == null && widget.inventoryData?['type_source'] == 'tous' && _entrepots.isNotEmpty) {
-      selectedEntrepotId = _entrepots.first['id_entrepot'];
-    }
+ void _showProposeArticleForm(String barcode, int quantite) {
+  final nomController = TextEditingController();
+  bool isSubmitting = false;
+  int? selectedEntrepotId = widget.selectedEntrepotId ?? widget.inventoryData?['id_entrepot'];
+  
+  // If it's a global inventory and no specific warehouse was passed, default to first
+  if (selectedEntrepotId == null && widget.inventoryData?['type_source'] == 'tous' && _entrepots.isNotEmpty) {
+    selectedEntrepotId = _entrepots.first['id_entrepot'];
+  }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setModalState) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8), // تم تعديلها إلى 8
+        ),
+        insetPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 24,
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
           child: Container(
             padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: BorderRadius.circular(8), // تم تعديلها إلى 8 لكل الجهات
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)))),
                 const SizedBox(height: 20),
                 const Text(
                   'Ajouter un article inconnu',
@@ -411,23 +512,28 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
-                    color: AppColors.backgroundStart,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: Colors.blue.shade100),
+                    borderRadius: BorderRadius.circular(8), // تم تعديلها إلى 8
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.barcode_reader, size: 18, color: AppColors.primary),
-                      const SizedBox(width: 10),
+                      const Text(
+                        'Code-barres :',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8), // تم إصلاحها لإعطاء مسافة أفقية
                       Text(
                         barcode,
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 14, letterSpacing: 1),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(4)),
-                        child: const Text('Code-barres', style: TextStyle(fontSize: 9, color: AppColors.primary)),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                          fontSize: 14,
+                          letterSpacing: 1,
+                        ),
                       ),
                     ],
                   ),
@@ -436,24 +542,24 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
 
                 // Warehouse selection if global
                 if (widget.inventoryData?['type_source'] == 'tous' && _entrepots.isNotEmpty) ...[
-                  const Text('Entrepôt de destination', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                  const SizedBox(height: 8),
+                  const Text('Entrepôt de destination : ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                  const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8), // تم تعديلها إلى 8
                       border: Border.all(color: Colors.grey.shade300),
-                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: selectedEntrepotId,
-                        isExpanded: true,
-                        style: const TextStyle(fontSize: 13, color: AppColors.primary),
-                        onChanged: (val) => setModalState(() => selectedEntrepotId = val),
-                        items: _entrepots.map<DropdownMenuItem<int>>((e) => DropdownMenuItem<int>(
-                          value: e['id_entrepot'],
-                          child: Text(e['nom'] ?? 'Entrepôt'),
-                        )).toList(),
+                    child: Text(
+                      _entrepots.firstWhere(
+                        (e) => e['id_entrepot'] == selectedEntrepotId,
+                        orElse: () => {'nom': 'Entrepôt'},
+                      )['nom'],
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
@@ -467,8 +573,8 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                     labelText: 'Nom de l\'article',
                     hintText: 'Ex: Carton de lait 1L',
                     labelStyle: const TextStyle(color: AppColors.primary, fontSize: 13),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: BorderSide(color: Colors.grey.shade300)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(6), borderSide: const BorderSide(color: AppColors.primary)),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey.shade300)), // تم تعديلها إلى 8
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary)), // تم تعديلها إلى 8
                     prefixIcon: const Icon(Icons.edit_outlined, color: AppColors.primary, size: 18),
                     contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
                   ),
@@ -513,10 +619,10 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // تم تعديلها إلى 8
                     ),
                     child: isSubmitting
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      ? const SizedBox(width: 20, height: 15, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : const Text('Proposer à l\'administrateur', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ),
@@ -526,8 +632,9 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showErrorDialog(String message) {
     // Arrêter le scanner pour que l'utilisateur puisse lire l'erreur
@@ -744,7 +851,10 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                             _scannerController.stop();
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => PauseMenuPage(inventoryId: widget.inventoryId)),
+                              MaterialPageRoute(builder: (context) => PauseMenuPage(
+                                inventoryId: widget.inventoryId,
+                                selectedEntrepotId: widget.selectedEntrepotId,
+                              )),
                             ).then((_) => _scannerController.start());
                           },
                         ),
@@ -774,13 +884,13 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                         onPressed: _isSyncing ? null : _handleSync,
                         icon: _isSyncing
                             ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Icon(Icons.cloud_upload, size: 18),
+                            : const Icon(Icons.cloud_upload, size: 18,color: Colors.white,),
                         label: Text(
                           _isSyncing ? 'Synchronisation...' : 'Synchroniser ($_unsyncedCount)',
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold,color: Colors.white),
                         ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade600,
+                          backgroundColor: AppColors.primary,
                           disabledBackgroundColor: Colors.grey.shade400,
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),

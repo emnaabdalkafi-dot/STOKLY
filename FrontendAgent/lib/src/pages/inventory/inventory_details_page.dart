@@ -8,6 +8,7 @@ import '../../services/websocket_service.dart';
 import '../../services/sync_service.dart';
 import 'scan_page.dart';
 import 'notes_list_page.dart';
+import '../../widgets/custom_app_bar.dart';
 
 class AgentsProvider extends ChangeNotifier {
   List<dynamic> agents = [];
@@ -159,6 +160,12 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
             }
           }
           _uniqueEntrepots = entrepotsMap.values.toList();
+
+          if (_details!['type_source'] == 'entrepot' && _details!['id_entrepot'] != null) {
+            _selectedEntrepotId = _details!['id_entrepot'];
+          } else if (_uniqueEntrepots.length == 1) {
+            _selectedEntrepotId = _uniqueEntrepots.first['id_entrepot'];
+          }
         } else {
           _errorMessage = result['message'] ?? 'Erreur de chargement';
         }
@@ -185,7 +192,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
   case 'en attente':
     return const Color(0xFFF59E0B); 
     
-  case 'termine':
+  case 'cloture':
     return const Color(0xFFEF4444); 
     
   default:
@@ -356,37 +363,32 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
     final statut = _details!['statut'] ?? 'en attente';
     final statusColor = _statusColor(statut);
     final lignes = (_details!['lignes'] as List?) ?? [];
+    
+    // Group and sort unique articles by barcode
+    final Map<String, Map<String, dynamic>> uniqueArticlesMap = {};
+    for (var ligne in lignes) {
+      final article = ligne['article'];
+      if (article != null) {
+        final barcode = article['code_barres'] ?? '';
+        if (barcode.isNotEmpty && !uniqueArticlesMap.containsKey(barcode)) {
+          uniqueArticlesMap[barcode] = Map<String, dynamic>.from(article);
+        }
+      }
+    }
+    final uniqueArticlesList = uniqueArticlesMap.values.toList();
+    uniqueArticlesList.sort((a, b) {
+      final barcodeA = (a['code_barres'] ?? '').toString();
+      final barcodeB = (b['code_barres'] ?? '').toString();
+      return barcodeA.compareTo(barcodeB);
+    });
+
     final affectations = (_details!['affectations'] as List?) ?? [];
     final remarque = _details!['remarque'] ?? '';
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundStart,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary, size: 20), 
-          onPressed: () => Navigator.pop(context)
-        ),
-        title: const Text(
-          'Détails de l\'inventaire', 
-          style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16)
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16.0),
-            child: Center(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(7), // Increased
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  width: 30,
-                  height: 30,
-                ),
-              ),
-            ),
-          ),
-        ],
+      appBar: const CustomAppBar(
+        title: 'Détails de l\'inventaire',
       ),
       body: Container(
         width: double.infinity,
@@ -431,7 +433,32 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                     if (_details!['type_source'] == 'entrepot' && _details!['entrepot'] != null)
                       _detailRow(Icons.warehouse_outlined, 'Entrepôt', _details!['entrepot']['nom'] ?? '—'),
                     _detailRow(Icons.location_on_outlined, 'Site', _details!['site'] ?? '—'),
-
+  Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade300),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Positioned(
+                            top: -22,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: const Text('Remarque', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 11)),
+                            ),
+                          ),
+                          Text(
+                            remarque.isNotEmpty ? remarque : 'Aucune remarque',
+                            style: TextStyle(color: remarque.isNotEmpty ? Colors.grey.shade700 : Colors.grey.shade400, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     // Agents section - expandable list
                     if (affectations.isNotEmpty) ...[
                       const SizedBox(height: 16),
@@ -449,7 +476,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                             leading: Icon(
                               Icons.people_alt_outlined,
                               size: 18,
-                              color: AppColors.primary.withOpacity(0.6),
+                              color: AppColors.primary,
                             ),
                             title: const Text(
                               'Agents assignés',
@@ -458,6 +485,11 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                                 color: AppColors.primary,
                                 fontSize: 10,
                               ),
+                            ),
+                             trailing: Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: AppColors.primary,
+                              size: 18,
                             ),
                             children: [
                               const SizedBox(height: 8),
@@ -555,7 +587,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                                   },
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 2),
                             ],
                           ),
                         ),
@@ -563,7 +595,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                     ],
                     
                     // Articles count - clickable to expand
-                    if (lignes.isNotEmpty) ...[
+                    if (uniqueArticlesList.isNotEmpty) ...[
                       const SizedBox(height: 16),
                       Container(
                         decoration: BoxDecoration(
@@ -582,7 +614,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                               color: AppColors.primary,
                             ),
                             title: Text(
-                              '${lignes.length} article(s)',
+                              '${uniqueArticlesList.length} article(s)',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.primary,
@@ -591,15 +623,14 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                             ),
                             trailing: Icon(
                               Icons.keyboard_arrow_down_rounded,
-                              color: Colors.grey.shade500,
+                              color: AppColors.primary,
                               size: 18,
                             ),
                             children: [
                               const SizedBox(height: 4),
-                              ...lignes.map<Widget>((ligne) {
-                                final article = ligne['article'];
-                                final articleName = article?['nom'] ?? 'Article #${ligne['id_article']}';
-                                final reference = article?['code_barres'] ?? '';
+                              ...uniqueArticlesList.map<Widget>((article) {
+                                final articleName = article['nom'] ?? 'Article #${article['id_article']}';
+                                final reference = article['code_barres'] ?? '';
 
                                 return Container(
                                   width: double.infinity,
@@ -643,40 +674,43 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                       ),
                     ],
 
-                    // Remarque section
-                    const SizedBox(height: 18),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Positioned(
-                            top: -22,
-                            left: 8,
-                            child: Container(
-                              color: AppColors.backgroundStart,
-                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                              child: const Text('Remarque', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 11)),
-                            ),
+                    const SizedBox(height: 2),
+                  if (widget.showActionButton && (_details!['type_source'] == 'tous' || _details!['type_source'] == 'article')) ...[
+                      const SizedBox(height: 18),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            value: _selectedEntrepotId,
+                            hint: const Text('Choisir l\'entrepôt pour commencer', style: TextStyle(fontSize: 10, color:AppColors.primary )),
+                            isExpanded: true,
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: AppColors.primary ,size: 18,),
+                            items: _uniqueEntrepots.map<DropdownMenuItem<int>>((entrepot) {
+                              return DropdownMenuItem<int>(
+                                value: entrepot['id_entrepot'],
+                                child: Text(entrepot['nom'] ?? 'Entrepôt', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _selectedEntrepotId = value;
+                              });
+                            },
                           ),
-                          Text(
-                            remarque.isNotEmpty ? remarque : 'Aucune remarque',
-                            style: TextStyle(color: remarque.isNotEmpty ? Colors.grey.shade700 : Colors.grey.shade400, fontSize: 11),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-
-                    const SizedBox(height: 10),
+                  ]
                   ],
                 ),
               ),
             ),
+            
             
             // Bottom Action Button
             Builder(
@@ -701,9 +735,11 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                 
                 final isFuture = diffDaysStart > 0;
                 final isExpired = diffHoursEnd < 0;
-                final isTerminated = statut == 'termine';
+                final isTerminated = statut == 'cloture';
                 
-                final bool canStart = !isFuture && !isTerminated && !isExpired;
+                final bool isWarehouseRequired = _details!['type_source'] == 'tous' || _details!['type_source'] == 'article';
+                final bool hasSelectedWarehouse = _selectedEntrepotId != null || !isWarehouseRequired;
+                final bool canStart = !isFuture && !isTerminated && !isExpired && hasSelectedWarehouse;
 
                 String daysInfo = '';
                 if (isFuture) {
@@ -711,7 +747,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                 } else if (isExpired) {
                   daysInfo = 'Date de fin dépassée';
                 } else if (isTerminated) {
-                  daysInfo = 'Inventaire terminé';
+                  daysInfo = 'Inventaire cloturé';
                 } else {
                   if (diffHoursEnd < 24) {
                     daysInfo = 'Il reste $diffHoursEnd heure${diffHoursEnd > 1 ? 's' : ''}';
@@ -766,7 +802,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                           Expanded(
                             flex: 2,
                             child: ElevatedButton(
-                              onPressed: (_isStarting || !canStart) ? null : _showWarehouseSelection,
+                              onPressed: (_isStarting || !canStart) ? null : _handleStart,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 disabledBackgroundColor: Colors.grey.shade300,

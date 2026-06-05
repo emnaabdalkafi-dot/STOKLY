@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Inventaire;
+
 use App\Services\InventaireService;
 use App\Repositories\InventaireRepository;
 use Illuminate\Http\Request;
@@ -32,7 +33,7 @@ class InventaireController extends Controller
                 'total' => Inventaire::count(),
                 'en_attente' => Inventaire::where('statut', 'en attente')->count(),
                 'en_cours' => Inventaire::where('statut', 'en cours')->count(),
-                'termines' => Inventaire::where('statut', 'termine')->count(),
+                'clotures' => Inventaire::where('statut', 'cloture')->count(),
             ]
         ]);
     }
@@ -70,7 +71,7 @@ class InventaireController extends Controller
             'date_debut' => 'required|date',
             'date_fin' => 'required|date|after:date_debut',
             'site' => 'required|string|max:255',
-            'statut' => 'required|in:en cours,en attente,termine',
+            'statut' => 'required|in:en cours,en attente,cloture',
             'remarque' => 'nullable|string',
             'agents' => 'required|array|min:1',
             'agents.*' => 'exists:utilisateurs,id',
@@ -93,12 +94,6 @@ class InventaireController extends Controller
         ]);
     }
 
-    public function destroy($id)
-    {
-        $this->repository->delete($id);
-        return response()->json(['success' => true, 'message' => 'Inventaire supprimé']);
-    }
-
     public function startInventaire(Request $request, $id)
     {
         $inventaire = $this->service->startInventaire($id, $request->user());
@@ -107,14 +102,31 @@ class InventaireController extends Controller
 
     public function scanBarcode(Request $request, $id)
     {
-        $request->validate([
-            'code_barres' => 'required|string',
-            'quantite' => 'nullable|integer|min:1',
-            'id_entrepot' => 'nullable|integer|exists:entrepots,id_entrepot'
-        ]);
+        $inventaire = Inventaire::findOrFail($id);
+
+        if (in_array($inventaire->type_source, ['tous', 'article'])) {
+            $request->validate([
+                'code_barres' => 'required|string',
+                'quantite' => 'nullable|integer|min:1',
+                'id_entrepot' => 'required|integer|exists:entrepots,id_entrepot'
+            ], [
+                'id_entrepot.required' => 'Le choix de l\'entrepôt est obligatoire pour ce type d\'inventaire.'
+            ]);
+        } else {
+            $request->validate([
+                'code_barres' => 'required|string',
+                'quantite' => 'nullable|integer|min:1',
+                'id_entrepot' => 'nullable|integer|exists:entrepots,id_entrepot'
+            ]);
+        }
         
         $quantite = $request->input('quantite', 1);
         $idEntrepot = $request->input('id_entrepot');
+
+        if ($inventaire->type_source === 'entrepot' && empty($idEntrepot)) {
+            $idEntrepot = $inventaire->id_entrepot;
+        }
+
         $result = $this->service->scanArticle($id, $request->code_barres, $request->user()->id, $quantite, $idEntrepot);
         
         return response()->json($result, $result['success'] ? 200 : 404);
@@ -128,56 +140,63 @@ class InventaireController extends Controller
 
     public function getSummary($id)
     {
-        // For simplicity and to avoid over-engineering the summary DTO, 
-        // we can keep some mapping logic in the service but this one is already quite clean in terms of dependencies.
-        // I'll keep the response structure here.
-        
+         
         $inventaire = Inventaire::findOrFail($id);
 
-        if ($inventaire->statut === 'termine') {
-            $rapport = $this->repository->findRapportByInventaire($id);
-            if ($rapport) {
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'id_inventaire' => $rapport->id_inventaire,
-                        'titre' => $rapport->titre,
-                        'site' => $rapport->site,
-                        'type_source' => $rapport->type_source,
-                        'date_debut' => $rapport->date_debut,
-                        'date_fin' => $rapport->date_fin,
-                        'total_articles' => $rapport->total_articles,
-                        'articles_comptes' => $rapport->articles_comptes,
-                        'sans_ecart_count' => $rapport->sans_ecart_count,
-                        'ecart_positif_count' => $rapport->ecarts_positifs,
-                        'ecart_negatif_count' => $rapport->ecarts_negatifs,
-                        'ecart_positif_price' => $rapport->ecart_positif_price,
-                        'ecart_negatif_price' => $rapport->ecart_negatif_price,
-                        'agent_names' => $rapport->agents_details,
-                        'total_qty_theorique' => $rapport->donnees_json['total_qty_theorique'] ?? 0,
-                        'total_qty_comptee' => $rapport->donnees_json['total_qty_comptee'] ?? 0,
-                        'taux_avancement' => $rapport->taux_avancement,
-                        'statut' => 'termine',
-                        'fichier_path' => $rapport->fichier_path,
-                        'correction_details' => $rapport->correction_details,
-                        'lignes' => collect($rapport->lignes_details)->map(fn($l) => [
-                            'nom' => $l['nom'],
-                            'code_barres' => $l['code_barres'],
-                            'quantite_theorique' => $l['theorique'],
-                            'quantite_comptee' => $l['comptee'],
-                            'ecart' => $l['ecart'],
-                            'agents_contrib' => $l['agents_contrib'] ?? ''
-                        ]),
-                    ]
-                ]);
-            }
-        }
 
-        $inventaire->load(['lignes.article', 'affectations.agent']);
+
+        $inventaire->load(['lignes.article', 'lignes.entrepot', 'affectations.agent']);
         $scansByArticle = $this->repository->getScansByArticle($id)->groupBy('id_article');
 
-        $ecartsPositifs = $inventaire->lignes->where('ecart', '>', 0);
-        $ecartsNegatifs = $inventaire->lignes->where('ecart', '<', 0);
+        // Group lines by id_article to merge duplicate rows for different warehouses
+        $groupedLignes = $inventaire->lignes->groupBy('id_article')->map(function($group) use ($scansByArticle) {
+            $first = $group->first();
+            $article = $first->article;
+            $idArticle = $first->id_article;
+            
+            $articleScans = $scansByArticle->get($idArticle) ?? collect();
+            $agentsContrib = $articleScans
+                ->map(fn($s) => trim((($s->agent->nom ?? '') . ' ' . ($s->agent->prenom ?? '')) . ($s->agent->email ? ' <' . $s->agent->email . '>' : '')))
+                ->unique()
+                ->filter()
+                ->implode(', ');
+
+            $totalTheorique = $group->sum('quantite_theorique');
+            $totalComptee = $group->sum('quantite_comptee');
+
+            // Determine a representative entrepot for the grouped article (if all lines share the same entrepot)
+            $entrepot = null;
+            $entrepotNames = $group->map(fn($g) => $g->entrepot?->nom)->filter()->unique()->values();
+            if ($entrepotNames->count() === 1) {
+                $entrepot = ['nom' => $entrepotNames->first()];
+            }
+
+            return [
+                'id_ligne' => $first->id_ligne,
+                'id_article' => $idArticle,
+                'nom' => $article->nom ?? '...',
+                'code_barres' => $article->code_barres ?? '...',
+                'prix' => $article->prix ?? 0,
+                'quantite_theorique' => $totalTheorique,
+                'quantite_comptee' => $totalComptee,
+                'ecart' => $totalComptee - $totalTheorique,
+                'agents_contrib' => $agentsContrib,
+                'entrepot' => $entrepot
+            ];
+        });
+
+        // Sort by code_barres ascending
+        $sortedLignes = $groupedLignes->sortBy('code_barres')->values();
+
+        // Calculate summary counters using the grouped/unique list
+        $totalArticles = $sortedLignes->count();
+        $sansEcartCount = $sortedLignes->where('ecart', 0)->count();
+        
+        $ecartsPositifs = $sortedLignes->where('ecart', '>', 0);
+        $ecartPositifPrice = $ecartsPositifs->reduce(fn($carry, $item) => $carry + ($item['ecart'] * $item['prix']), 0);
+
+        $ecartsNegatifs = $sortedLignes->where('ecart', '<', 0);
+        $ecartNegatifPrice = $ecartsNegatifs->reduce(fn($carry, $item) => $carry + (abs($item['ecart']) * $item['prix']), 0);
 
         return response()->json([
             'success' => true,
@@ -186,26 +205,34 @@ class InventaireController extends Controller
                 'titre' => $inventaire->titre,
                 'site' => $inventaire->site,
                 'statut' => $inventaire->statut,
-                'total_articles' => $inventaire->lignes->count(),
-                'sans_ecart_count' => $inventaire->lignes->where('ecart', 0)->count(),
+                'fichier_path' => $inventaire->fichier_path,
+                'total_articles' => $totalArticles,
+                'sans_ecart_count' => $sansEcartCount,
                 'ecart_positif_count' => $ecartsPositifs->count(),
-                'ecart_positif_price' => $ecartsPositifs->reduce(fn($carry, $item) => $carry + ($item->ecart * ($item->article->prix ?? 0)), 0),
+                'ecart_positif_price' => $ecartPositifPrice,
                 'ecart_negatif_count' => $ecartsNegatifs->count(),
-                'ecart_negatif_price' => $ecartsNegatifs->reduce(fn($carry, $item) => $carry + (abs($item->ecart) * ($item->article->prix ?? 0)), 0),
+                'ecart_negatif_price' => $ecartNegatifPrice,
                 'agent_names' => $inventaire->affectations->map(fn($a) => ($a->agent->nom ?? '') . ' ' . ($a->agent->prenom ?? ''))->filter()->values(),
-                'lignes' => $inventaire->lignes->map(function($l) use ($scansByArticle) {
-                    $articleScans = $scansByArticle->get($l->id_article) ?? collect();
-                    return [
-                        'id_ligne' => $l->id_ligne,
-                        'id_article' => $l->id_article,
-                        'nom' => $l->article->nom,
-                        'code_barres' => $l->article->code_barres,
-                        'quantite_theorique' => $l->quantite_theorique,
-                        'quantite_comptee' => $l->quantite_comptee,
-                        'ecart' => $l->ecart,
-                        'agents_contrib' => $articleScans->map(fn($s) => ($s->agent->nom ?? 'Agent') . ' (' . $s->total_scanee . ')')->implode(', ')
-                    ];
-                })
+                'lignes' => $sortedLignes,
+                // Include pending correction requests for this inventory
+                'corrections' => \App\Models\Correction::whereIn('id_ligne_inventaire', $inventaire->lignes->pluck('id_ligne'))
+                    ->where('statut_validation', 'valide')
+                    ->with(['agent', 'ligne.article', 'ligne.entrepot'])
+                    ->get()
+                    ->map(fn($c) => [
+                        'id_corr' => $c->id_corr,
+                        'id_ligne' => $c->id_ligne_inventaire,
+                        'id_agent' => $c->id_agent,
+                        'agent' => $c->agent ? ['nom' => $c->agent->nom ?? null, 'prenom' => $c->agent->prenom ?? null] : null,
+                        'qte' => $c->qte,
+                        'description' => $c->description,
+                        'ligne' => $c->ligne ? [
+                            'id_ligne' => $c->ligne->id_ligne,
+                            'id_article' => $c->ligne->id_article,
+                            'article' => $c->ligne->article ? ['nom' => $c->ligne->article->nom ?? null, 'code_barres' => $c->ligne->article->code_barres ?? null] : null,
+                            'entrepot' => $c->ligne->entrepot ? ['nom' => $c->ligne->entrepot->nom ?? null] : null,
+                        ] : null,
+                    ])
             ]
         ]);
     }
@@ -237,7 +264,11 @@ class InventaireController extends Controller
             $article = $this->service->proposeArticle($id, $request->user(), $request->all());
             return response()->json(['success' => true, 'data' => $article, 'message' => 'Article proposé avec succès.'], 201);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], $e->getCode() ?: 400);
+            $code = $e->getCode();
+            if (!is_numeric($code) || $code < 100 || $code >= 600) {
+                $code = 400;
+            }
+            return response()->json(['success' => false, 'message' => $e->getMessage()], $code);
         }
     }
 
@@ -250,11 +281,6 @@ class InventaireController extends Controller
     public function getProposedArticles()
     {
         return response()->json(['success' => true, 'data' => $this->repository->getProposedArticles()]);
-    }
-
-    public function getRapports()
-    {
-        return response()->json(['success' => true, 'data' => $this->repository->getAllRapports()]);
     }
 
     public function getNotes(Request $request, $id)

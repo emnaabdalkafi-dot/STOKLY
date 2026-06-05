@@ -29,15 +29,18 @@ class ArticleController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'code_barres' => 'required|string|unique:articles',
-            'nom' => 'required|string|max:255',
+            'code_barres' => 'required|string',
+            'nom' => 'nullable|string|max:255',
             'prix' => 'nullable|numeric',
             'etat' => 'nullable|string',
             'quantite_total' => 'nullable|integer',
             'categories' => 'array',
             'entrepots' => 'array',
         ]);
-
+        $exists = \App\Models\Article::where('code_barres', $data['code_barres'])->where('etat', 'connu')->exists();
+        if ($exists) {
+            return response()->json(['errors' => ['code_barres' => ['Un article avec ce code-barres existe déjà.']]], 422);
+        }
         $article = $this->service->createArticle($data);
         return response()->json(['success' => true, 'data' => $article], 201);
     }
@@ -45,17 +48,24 @@ class ArticleController extends Controller
     public function update(Request $request, $id)
     {
         $data = $request->validate([
-            'code_barres' => 'sometimes|required|string|unique:articles,code_barres,'.$id.',id_article',
-            'nom' => 'sometimes|required|string|max:255',
+            'code_barres' => 'sometimes|required|string',
+            'nom' => 'nullable|string|max:255',
             'prix' => 'nullable|numeric',
-            'etat' => 'nullable|string',
             'quantite_total' => 'nullable|integer',
             'categories' => 'array',
             'entrepots' => 'array',
         ]);
 
-        $article = $this->service->updateArticle($id, $data);
-        return response()->json(['success' => true, 'data' => $article]);
+        try {
+            $article = $this->service->updateArticle($id, $data);
+            return response()->json(['success' => true, 'data' => $article]);
+        } catch (\Exception $e) {
+            $statusCode = $e->getCode();
+            if ($statusCode < 400 || $statusCode > 599) {
+                $statusCode = 400;
+            }
+            return response()->json(['message' => $e->getMessage()], $statusCode);
+        }
     }
 
     public function destroy($id)

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import styles from './Gestions.module.css';
-import { inventaireService } from '../../../services/inventaireService';
-import api from '../../../services/api';
-import echo from '../../../services/echo';
-import layoutStyles from '../../../components/layout/layout.module.css';
-import { formatCompactNumber, formatCurrency, getCurrencySymbol } from '../../../utils/formatters';
+import styles from '../Gestions.module.css';
+import { inventaireService } from '../../../../services/inventaireService';
+import api from '../../../../services/api';
+import echo from '../../../../services/echo';
+import layoutStyles from '../../../../components/layout/layout.module.css';
+import { formatCompactNumber, formatCurrency, getCurrencySymbol } from '../../../../utils/formatters';
 
 interface InventaireModalsProps {
-  modalType: 'add' | 'edit' | 'delete' | 'details' | 'terminate' | 'addNote' | 'notes' | 'correctionRequests' | null;
+  modalType: 'add' | 'delete' | 'details' | 'terminate' | 'rapport' | 'historique' | 'addNote' | 'notes' | 'correctionRequests' | null;
   selectedItem: any;
   onClose: () => void;
   onSuccess: (stayOpen?: boolean) => void;
@@ -40,19 +40,20 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
   const [notes, setNotes] = useState<any[]>([]);
   const [noteContent, setNoteContent] = useState('');
   const [inventairesList, setInventairesList] = useState<any[]>([]);
+  const [loadingInventaires, setLoadingInventaires] = useState(false);
   const [selectedInventaireId, setSelectedInventaireId] = useState<number | ''>('');
   const [updateStock, setUpdateStock] = useState(false);
   const [corrections, setCorrections] = useState<any[]>([]);
   const [loadingCorrections, setLoadingCorrections] = useState(false);
-  const [rejectionMotif, setRejectionMotif] = useState('');
+  const [correctionSearch, setCorrectionSearch] = useState('');
 
   useEffect(() => {
     if (modalType === 'add' || modalType === 'details' || modalType === 'addNote') {
       fetchOptions();
     }
-    
+
     if (modalType === 'addNote') {
-       fetchInventaires();
+      fetchInventaires();
     }
 
     if (modalType === 'notes' && selectedItem) {
@@ -60,10 +61,11 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     }
 
     if (modalType === 'correctionRequests') {
+      setCorrectionSearch('');
       fetchCorrections();
     }
 
-    if (modalType === 'terminate' && selectedItem) {
+    if ((modalType === 'terminate' || modalType === 'rapport' || modalType === 'historique') && selectedItem) {
       fetchSummary();
     }
 
@@ -101,9 +103,9 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     if (!selectedItem) return;
 
     const channel = echo.private('admin');
-    
+
     const onUpdate = () => {
-      if (modalType === 'terminate') {
+      if (modalType === 'terminate' || modalType === 'rapport') {
         fetchSummary();
       }
     };
@@ -147,7 +149,6 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
 
   const [loadingNotes, setLoadingNotes] = useState(false);
   const [submittingNote, setSubmittingNote] = useState(false);
-  const [activeNoteMenu, setActiveNoteMenu] = useState<number | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const [editNoteContent, setEditNoteContent] = useState('');
 
@@ -156,7 +157,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     try {
       const res = await api.get(`/inventaires/${id}/notes`);
       setNotes(res.data.data || []);
-      
+
       // Mark as read
       res.data.data?.forEach((n: any) => {
         if (!n.lu) api.put(`/inventaires/notes/${n.id_note}/read`);
@@ -165,18 +166,15 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     finally { setLoadingNotes(false); }
   };
 
-  // Close menu on click outside
-  useEffect(() => {
-    const handleClick = () => setActiveNoteMenu(null);
-    window.addEventListener('click', handleClick);
-    return () => window.removeEventListener('click', handleClick);
-  }, []);
+
 
   const fetchInventaires = async () => {
+    setLoadingInventaires(true);
     try {
       const res = await api.get('/inventaires');
       setInventairesList(res.data.data || []);
     } catch (err) { console.error(err); }
+    finally { setLoadingInventaires(false); }
   };
 
   const handleNoteSubmit = async (id?: number) => {
@@ -251,7 +249,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     setLoadingSummary(true);
     setGeneralError(null);
     try {
-       const payload = {
+      const payload = {
         update_stock: updateStock,
         lignes: summary.lignes.map((l: any) => ({
           id_ligne: l.id_ligne,
@@ -328,7 +326,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
         articles: formData.type_source === 'article' ? formData.articles : [],
         agents: formData.agents
       };
-      
+
       if (modalType === 'add') {
         await inventaireService.createInventaire(payload);
         onSuccess();
@@ -348,14 +346,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     }
   };
 
-  const handleDelete = async () => {
-    try {
-      await inventaireService.deleteInventaire(selectedItem.id_inventaire);
-      onSuccess();
-    } catch (err: any) {
-      setGeneralError(err.response?.data?.message || "Erreur de suppression");
-    }
-  };
+ 
 
   const [editSections, setEditSections] = useState({
     info: false,
@@ -363,26 +354,38 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     agents: false,
     remarque: false
   });
-
-  const getStatusColor = (s: string) => {
-    if (s === 'en cours') return '#22c55e';
-    if (s === 'termine' || s === 'terminé') return '#ef4444';
-    return '#f59e0b'; // en attente
+  const statusClass = (s: string) => {
+    if (s === 'en cours') return `${styles.statusActif}`;
+    if (s === 'cloture' || s === 'cloturé') return `${styles.statusInactif}`;
+    if (s === 'en attente') return `${styles.statusEnAttente}`;
+    return `${styles.statusBadge}`;
   };
-
   if (!modalType) return null;
 
   return (
     <div className={styles.modalOverlay}>
       <div className={`${styles.modalPanel} ${modalType === 'details' ? styles.modalContentExtraWide : ''}`}>
-        <button className={styles.dashboardMenuToggle} onClick={onClose}>
-          <i className="bi bi-x-lg" />
-        </button>
+        <div className={styles.modalHeader}>
+          <h3>
+            {modalType === 'add' && 'Créer un inventaire'}
+            {modalType === 'details' && (<>Détails de  {selectedItem.titre}<span className={statusClass(selectedItem.statut)}></span></>)}
+            {modalType === 'terminate' && (<>Clôturer {selectedItem.titre}<span className={statusClass(selectedItem.statut)}></span></>)}
+            {modalType === 'rapport' && (<>Rapport de  {selectedItem.titre}<span className={statusClass(selectedItem.statut)}></span></>)}
+            {modalType === 'addNote' && 'Ajouter une note'}
+            {modalType === 'notes' && (<>Notes de {selectedItem.titre}<span className={statusClass(selectedItem.statut)}></span></>)}
+            {modalType === 'correctionRequests' && 'Demandes de correction'}
+            {modalType === 'historique' && (<>Historique de  {selectedItem.titre}<span className={statusClass(selectedItem.statut)}></span></>)}
+
+          </h3>
+          <button className={styles.closeButton} onClick={onClose} >
+            <i className="bi bi-x-lg" />
+          </button>
+
+        </div>
         <div className={styles.modalContent}>
 
           {modalType === 'add' && (
             <div className={styles.detailsForm}>
-              <h3 className={styles.modalTitle}>Créer un inventaire</h3>
               {generalError && <div className={styles.fieldError} >{generalError}</div>}
 
               <div className={styles.detailsContainer} >
@@ -505,10 +508,10 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                 {formData.type_source === 'article' && (
                   <div className={styles.marginT1}>
                     <label>Sélectionner des articles</label>
-                    <div className={`${styles.list} ${styles.scrollList} ${styles.marginB1}`} style={{ maxHeight: '150px', overflowY: 'auto' }}>
-                      {loadingOptions ? <p>Chargement...</p> : articlesList.length === 0 ? <p>Aucun article trouvé.</p> : null}
+                    <div className={`${styles.list} ${styles.scrollList}`} >
+                      {loadingOptions ? <span className={`${layoutStyles.loadingDots} ${styles.tableEmptyMsg}`}>Chargement</span> : articlesList.length === 0 ? <p>Aucun article trouvé.</p> : null}
                       {articlesList.map(article => (
-                        <label key={article.id_article} className={styles.checkboxLabel}>
+                        <label key={article.id_article} className={styles.scrollListItem}>
                           <input
                             className={styles.checkbox}
                             type="checkbox"
@@ -527,9 +530,9 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
               <div className={styles.detailsContainer}>
                 <h4 className={styles.sectionTitle}>3. Affectation Agents</h4>
                 <div className={`${styles.list} ${styles.scrollList} ${styles.marginB1}`} >
-                  {loadingOptions ? <p>Chargement...</p> : agentsList.length === 0 ? <p>Aucun agent trouvé.</p> : null}
+                  {loadingOptions ? <span className={`${layoutStyles.loadingDots} ${styles.tableEmptyMsg}`}>Chargement</span> : agentsList.length === 0 ? <p>Aucun agent trouvé.</p> : null}
                   {agentsList.map(agent => (
-                    <label key={agent.id} className={styles.checkboxLabel}>
+                    <label key={agent.id} className={styles.scrollListItem}>
                       <input
                         className={styles.checkbox}
                         type="checkbox"
@@ -561,33 +564,23 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
 
           {modalType === 'details' && (
             <div className={styles.detailsForm}>
-              {loadingOptions && <div className={styles.tableEmptyMsg}>Chargement...</div>}
               {generalError && <div className={styles.fieldError}>{generalError}</div>}
-              
-              <div className={styles.sectionHeader}>
-                <h3 className={styles.modalTitle}>
-                  <span>Details de </span>
-                   {formData.titre || formData.site}
-                  <span className={styles.statusDot} style={{ backgroundColor: getStatusColor(formData.statut) }} />
-                 
-                </h3>
-              </div>
 
               <div className={styles.detailsContainer}>
                 <div className={styles.sectionHeader}>
-                  <h4 className={styles.sectionTitle}>Informations Générales :</h4>
+                  <h4>Informations Générales :</h4>
                   <button className={styles.editMiniBtn} onClick={() => {
                     if (editSections.info) {
-                      const hasChanged = 
+                      const hasChanged =
                         formData.titre !== (selectedItem.titre || '') ||
                         formData.site !== (selectedItem.site || '') ||
                         formData.date_debut !== (selectedItem.date_debut?.split('T')[0] || '') ||
                         formData.date_fin !== (selectedItem.date_fin?.split('T')[0] || '');
-                      
+
                       if (hasChanged) handleSave();
-                      else setEditSections({...editSections, info: false});
+                      else setEditSections({ ...editSections, info: false });
                     } else {
-                      setEditSections({...editSections, info: true});
+                      setEditSections({ ...editSections, info: true });
                     }
                   }}>
                     {editSections.info ? <i className="bi bi-check-lg"></i> : <i className="bi bi-pencil"></i>}
@@ -596,6 +589,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
 
                 {!editSections.info ? (
                   <div className={styles.displayList}>
+                    <div className={styles.displayItem}><strong>Titre:</strong> {formData.titre}</div>
                     <div className={styles.displayItem}><strong>Site:</strong> {formData.site}</div>
                     <div className={styles.displayItem}><strong>Début:</strong> {formData.date_debut}</div>
                     <div className={styles.displayItem}><strong>Fin:</strong> {formData.date_fin}</div>
@@ -637,15 +631,15 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                   <button className={styles.editMiniBtn} onClick={() => {
                     if (editSections.source) {
                       const origArticles = selectedItem.lignes?.map((l: any) => l.id_article) || [];
-                      const hasChanged = 
+                      const hasChanged =
                         formData.type_source !== (selectedItem.type_source || 'tous') ||
                         formData.id_entrepot !== (selectedItem.id_entrepot || '') ||
                         JSON.stringify(formData.articles.sort()) !== JSON.stringify(origArticles.sort());
 
                       if (hasChanged) handleSave();
-                      else setEditSections({...editSections, source: false});
+                      else setEditSections({ ...editSections, source: false });
                     } else {
-                      setEditSections({...editSections, source: true});
+                      setEditSections({ ...editSections, source: true });
                     }
                   }}>
                     {editSections.source ? <i className="bi bi-check-lg"></i> : <i className="bi bi-pencil"></i>}
@@ -671,7 +665,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                 ) : (
                   <div>
                     {formData.type_source === 'entrepot' && (
-                      <select className={styles.filterSelect } value={formData.id_entrepot} onChange={e => setFormData({ ...formData, id_entrepot: e.target.value })}>
+                      <select className={styles.filterSelect} value={formData.id_entrepot} onChange={e => setFormData({ ...formData, id_entrepot: e.target.value })}>
                         <option value="">Sélectionner...</option>
                         {entrepotsList.filter(e => (e.articles_count || 0) > 0).map(e => <option key={e.id_entrepot} value={e.id_entrepot}>{e.nom}</option>)}
                       </select>
@@ -680,7 +674,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                     {formData.type_source === 'article' && (
                       <div className={`${styles.list} ${styles.scrollList}`} style={{ maxHeight: '120px' }}>
                         {articlesList.map(a => (
-                          <label key={a.id_article} className={styles.checkboxLabel}>
+                          <label key={a.id_article} className={styles.scrollListItem}>
                             <input type="checkbox" className={styles.checkbox} checked={formData.articles.includes(a.id_article)} onChange={() => handleArticleToggle(a.id_article)} />
                             {a.nom}
                           </label>
@@ -700,9 +694,9 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                       const hasChanged = JSON.stringify(formData.agents.sort()) !== JSON.stringify(origAgents.sort());
 
                       if (hasChanged) handleSave();
-                      else setEditSections({...editSections, agents: false});
+                      else setEditSections({ ...editSections, agents: false });
                     } else {
-                      setEditSections({...editSections, agents: true});
+                      setEditSections({ ...editSections, agents: true });
                     }
                   }}>
                     {editSections.agents ? <i className="bi bi-check-lg"></i> : <i className="bi bi-pencil"></i>}
@@ -712,26 +706,29 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                 {!editSections.agents ? (
                   <div className={styles.displayList}>
                     {formData.agents.length === 0 ? (
-                      <p style={{fontSize: '0.75rem', color: '#94a3b8'}}>Aucun agent assigné.</p>
+                      <p className={styles.tableEmptyMsg}>Aucun agent assigné.</p>
                     ) : (
                       formData.agents.map(agentId => {
                         const agent = agentsList.find(a => a.id === agentId);
                         const affectation = selectedItem.affectations?.find((a: any) => a.id_agent === agentId);
-                        const status = affectation?.statut_participation || 'inactif';
-                        
+
                         return (
                           <div key={agentId} className={styles.displayItem}>
-                            <span className={styles.statusDot} style={{ backgroundColor: status === 'actif' ? '#22c55e' : '#94a3b8', width: '8px', height: '8px' }} />
-                            {agent ? `${agent.nom} ${agent.prenom}` : `....`}
+                            <span className={
+                              affectation?.statut_participation === 'inactif'
+                                ? styles.statusInactif
+                                : styles.statusActif
+                            } ></span>
+                            {agent ? `${agent.nom} ${agent.prenom}` : <span className={layoutStyles.loadingDots}></span>}
                           </div>
                         );
                       })
                     )}
                   </div>
                 ) : (
-                  <div className={`${styles.list} ${styles.scrollList}`} style={{ maxHeight: '120px' }}>
+                  <div className={`${styles.list} ${styles.scrollList}`}>
                     {agentsList.map(agent => (
-                      <label key={agent.id} className={styles.checkboxLabel}>
+                      <label key={agent.id} className={styles.scrollListItem}>
                         <input type="checkbox" className={styles.checkbox} checked={formData.agents.includes(agent.id)} onChange={() => handleAgentToggle(agent.id)} />
                         {agent.nom} {agent.prenom}
                       </label>
@@ -742,23 +739,23 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
 
               <div className={styles.detailsContainer}>
                 <div className={styles.sectionHeader}>
-                  <h4 className={styles.sectionTitle}> Notes :</h4>
+                  <h4>Remarque :</h4>
                   <button className={styles.editMiniBtn} onClick={() => {
                     if (editSections.remarque) {
                       const hasChanged = formData.remarque !== (selectedItem.remarque || '');
                       if (hasChanged) handleSave();
-                      else setEditSections({...editSections, remarque: false});
+                      else setEditSections({ ...editSections, remarque: false });
                     } else {
-                      setEditSections({...editSections, remarque: true});
+                      setEditSections({ ...editSections, remarque: true });
                     }
                   }}>
                     {editSections.remarque ? <i className="bi bi-check-lg"></i> : <i className="bi bi-pencil"></i>}
                   </button>
                 </div>
-                
+
                 {!editSections.remarque ? (
                   <div className={styles.premiumNoteBox}>
-                    {formData.remarque || <span style={{color: '#94a3b8'}}>Aucune note pour cet inventaire.</span>}
+                    {formData.remarque || <span style={{ color: '#94a3b8' }}>Aucune note pour cet inventaire.</span>}
                   </div>
                 ) : (
                   <textarea className={styles.textareaInput} placeholder="Instructions..." value={formData.remarque} onChange={e => setFormData({ ...formData, remarque: e.target.value })} />
@@ -767,27 +764,14 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
             </div>
           )}
 
-          {modalType === 'delete' && (
-            <div className={styles.textAlignCenter}>
-              {generalError && <div className={styles.authAlert} style={{ marginBottom: '1rem' }}>{generalError}</div>}
-              <h3 className={styles.modalTitle}><i className="bi bi-exclamation-circle" /> Confirmation</h3>
-              <p className={styles.marginB2} style={{ marginTop: '1rem' }}>Supprimer l'inventaire <strong>{selectedItem?.site}</strong> ?</p>
-              <div className={styles.modalFooterCenter}>
-                <button className={styles.ActionButton} onClick={onClose}>Annuler</button>
-                <button className={styles.Submit} style={{ width: 'auto', marginTop: 0 }} onClick={handleDelete}>Supprimer</button>
-              </div>
-            </div>
-          )}
-          {modalType === 'terminate' && (
+        
+          {(modalType === 'terminate' || modalType === 'rapport' || modalType === 'historique') && (
             <div className={styles.detailsForm}>
-              <h3 className={styles.modalTitle}>
-                <i className={summary?.statut === 'termine' ? "bi bi-file-earmark-bar-graph" : "bi bi-file-earmark-check"} /> 
-                {summary?.statut === 'termine' ? 'Rapport d\'inventaire' : 'Clôture d\'inventaire'}
-              </h3>
+
               {generalError && <div className={styles.authAlert} style={{ marginBottom: '1rem' }}>{generalError}</div>}
-              
+
               {loadingSummary ? (
-                <div className={styles.tableEmptyMsg}><span className={styles.loadingDots}></span></div>
+                <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
               ) : summary ? (
                 <>
                   <div className={styles.detailsContainer}>
@@ -795,12 +779,12 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                     <div className={styles.displayList}>
                       <div className={styles.displayItem}><strong>Articles sans écart :</strong> {formatCompactNumber(summary.sans_ecart_count)}</div>
                       <div className={styles.displayItem}>
-                        <strong>Écarts Positifs (+) :</strong> {formatCompactNumber(summary.ecart_positif_count)} 
-                        <span style={{ color: '#22c55e', marginLeft: '10px' }}>({formatCurrency(summary.ecart_positif_price || 0, currency, true)})</span>
+                        <strong className={styles.positiveEcart}>Écarts Positifs (+) :</strong> {formatCompactNumber(summary.ecart_positif_count)}
+                        <span className={styles.ecartPositive}>({formatCurrency(summary.ecart_positif_price || 0, currency, true)})</span>
                       </div>
                       <div className={styles.displayItem}>
-                        <strong>Écarts Négatifs (-) :</strong> {formatCompactNumber(summary.ecart_negatif_count)}
-                        <span style={{ color: '#ef4444', marginLeft: '10px' }}>({formatCurrency(summary.ecart_negatif_price || 0, currency, true)})</span>
+                        <strong className={styles.negativeEcart}>Écarts Négatifs (-) :</strong> {formatCompactNumber(summary.ecart_negatif_count)}
+                        <span className={styles.ecartNegative}>({formatCurrency(summary.ecart_negatif_price || 0, currency, true)})</span>
                       </div>
                     </div>
                   </div>
@@ -837,52 +821,152 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                   </div>
 
                   <div className={styles.detailsContainer}>
-                    <h4 className={styles.sectionTitle}>Agents participants :</h4>
-                    <div className={styles.agentTagList} style={{ marginBottom: '1rem' }}>
+                    <h4 >Agents participants :</h4>
+                    <div className={styles.displayList} >
                       {summary.agent_names?.map((name: string, idx: number) => (
-                        <span key={idx} className={styles.countBadge} style={{ marginRight: '8px', marginBottom: '8px' }}>
+                        <span key={idx} className={styles.displayItem} >
                           {name}
                         </span>
                       ))}
                     </div>
 
-                    <h4 className={styles.sectionTitle} style={{ fontSize: '0.9rem', borderTop: '1px solid #eee', paddingTop: '1rem' }}>Détails des Contributions par Article :</h4>
-                    <div className={styles.scrollList} style={{ maxHeight: '200px' }}>
-                       {summary.lignes?.filter((l:any) => l.agents_contrib).map((l: any) => (
-                         <div key={l.id_ligne} className={styles.displayItem} style={{ padding: '8px', borderBottom: '1px solid #f8fafc' }}>
-                            <strong>{l.nom} :</strong> <span style={{ fontSize: '0.8rem', color: '#64748b' }}>{l.agents_contrib}</span>
-                         </div>
-                       ))}
+                    <h4 className={styles.sectionTitle} >Détails de quentité comptée par agent :</h4>
+                    <div className={styles.List} style={{ maxHeight: '200px' }}>
+                      {summary.lignes?.filter((l: any) => l.agents_contrib).map((l: any) => {
+                        const agentsArr = (l.agents_contrib || '')
+                          .toString()
+                          .split(',')
+                          .map((s: string) => s.trim())
+                          .filter(Boolean)
+                          .map((s: string) => {
+                            const m = s.match(/^(.*?)(?:\s*<([^>]+)>)?$/);
+                            return { name: m ? m[1].trim() : s, email: (m && m[2]) ? m[2].trim() : '' };
+                          });
+                        const code = l.code_barres || l.code || l.article?.code_barres || l.ligne?.article?.code_barres || '';
+                        const articleName = l.nom || l.article?.nom || l.ligne?.article?.nom || 'Article';
+                        const entrepotName = l.entrepot?.nom || l.entrepot_nom || l.nom_entrepot || '';
+                        return (
+                          <div key={l.id_ligne} className={styles.Item}>
+
+                            <span
+                              title={`${articleName} (${entrepotName}) : ${l.quantite_comptee}`}
+                            >
+                              <strong>[{code}]</strong>{' '}
+
+                              {articleName.length > 20
+                                ? `${articleName.substring(0, 20)}...`
+                                : articleName}
+
+                              {entrepotName && (
+                                <>
+                                  {' '}
+                                  <span className={styles.entrepotLabel}>
+                                    (
+                                    {entrepotName.length > 25
+                                      ? `${entrepotName.substring(0, 25)}...`
+                                      : entrepotName}
+                                    )
+                                  </span>
+                                </>
+                              )}
+
+                              {' '}:
+                              <span className={styles.quantiteValue}>
+                                {formatCompactNumber(l.quantite_comptee ?? 0)}
+                              </span>
+                            </span>
+                            <strong title={agentsArr.map((a: any) => a.email).join(', ')}>
+                              {agentsArr.map((a: any, idx: number) => (
+                                <span key={idx}>
+                                  {a.name}
+                                  
+                                </span>
+                              ))}
+                            </strong>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <h4 className={styles.sectionTitle} >Demandes de correction validées:</h4>
+                    <div className={styles.List} style={{ maxHeight: '200px' }}>
+                      {(summary.corrections || summary.correction_details || []).length > 0 ? (
+                        <>
+                          {(summary.corrections || summary.correction_details || []).map((corr: any) => {
+                            const agentName = typeof corr.agent === 'string'
+                              ? corr.agent
+                              : corr.agent?.nom || corr.agent?.prenom
+                                ? `${corr.agent.nom || ''} ${corr.agent.prenom || ''}`.trim()
+                                : corr.agent_nom || corr.id_agent || 'Agent';
+                            const code = corr.ligne?.article?.code_barres || corr.article_code || corr.article?.code_barres || '—';
+                            const articleName = corr.ligne?.article?.nom || corr.article_nom || 'Article';
+                            const entrepotName = corr.ligne?.entrepot?.nom || corr.entrepot_nom || '—';
+                            return (
+                              <div key={corr.id_corr || corr.id} className={styles.Item}>
+
+                                <span
+                                  title={`${articleName}${entrepotName ? ` (${entrepotName})` : ''} -${corr.qte}`}
+                                >
+                                  <strong>[{code}]</strong>{' '}
+
+                                  {articleName.length > 18
+                                    ? `${articleName.substring(0, 18)}...`
+                                    : articleName}
+
+                                  {entrepotName && (
+                                    <>
+                                      {' '}
+                                      <span className={styles.textMuted}>
+                                        (
+                                        {entrepotName.length > 20
+                                          ? `${entrepotName.substring(0, 20)}...`
+                                          : entrepotName}
+                                        )
+                                      </span>
+                                    </>
+                                  )}
+
+                                  {' '}:
+                                  <span className={styles.textDanger}>
+                                    -{formatCompactNumber(corr.qte || 0)}
+                                  </span>
+                                </span>
+                                <strong title={agentName}>{agentName.length > 10 ? `${agentName.substring(0, 10)}...` : agentName}</strong>
+                               
+                              </div>
+                            );
+                          })}
+                        </>
+                      ) : (<div className={styles.Item}>Aucune correction à afficher.</div>)}
                     </div>
                   </div>
 
-                  {summary.statut !== 'termine' && (
+                  {summary.statut !== 'cloture' && summary.statut !== 'en attente' && (
                     <>
-                      <div className={styles.alertsimple}>
-                        <i className="bi bi-exclamation-triangle" style={{ marginRight: '10px' }} />
-                        <strong>Attention :</strong> La validation générera le rapport final et supprimera définitivement les données temporaires.
-                      </div>
+                      <div className={styles.detailsContainer}>
+                        <label className={styles.scrollListItem} >
+                          <input
+                            type="checkbox"
+                            className={styles.checkbox}
+                            checked={updateStock}
+                            onChange={e => setUpdateStock(e.target.checked)}
 
-                      <div className={styles.detailsContainer} style={{ marginTop: '1rem', border: '1px dashed #cbd5e1', padding: '1rem', backgroundColor: '#f8fafc' }}>
-                        <label className={styles.checkboxLabel} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.9rem', fontWeight: '600' }}>
-                          <input 
-                            type="checkbox" 
-                            className={styles.checkbox} 
-                            checked={updateStock} 
-                            onChange={e => setUpdateStock(e.target.checked)} 
-                            style={{ width: '18px', height: '18px' }}
                           />
-                          Mettre à jour les stocks réels (Articles & Entrepôts)
+                          Mettre à jour les stocks réels
                         </label>
-                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '5px', marginLeft: '28px' }}>
+                        <p className={styles.noteTime}>
                           Une sauvegarde Excel des anciennes quantités sera générée automatiquement avant la mise à jour.
                         </p>
                       </div>
+                      <div className={styles.alertsimple}>
+                        <i className="bi bi-exclamation-triangle" />
+                        <strong>Attention :</strong> La validation générera le rapport final et supprimera définitivement les données temporaires.
+                      </div>
 
-                      <div className={styles.modalFooterCenter}>
-                        <button className={styles.ActionButton} onClick={onClose} disabled={loadingSummary}>Annuler</button>
-                        <button 
-                          className={styles.Submit} 
+
+
+                      <div className={styles.modalFooter}>
+                        <button
+                          className={styles.Submit}
                           onClick={handleTerminate}
                           disabled={loadingSummary}
                         >
@@ -892,12 +976,11 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                     </>
                   )}
 
-                  {summary.statut === 'termine' && (
-                    <div className={styles.modalFooterCenter} style={{ gap: '1rem' }}>
-                       <button className={styles.ActionButton} onClick={onClose}>Fermer</button>
-                       <button 
-                        className={styles.ActionButton}
-                        style={{ borderColor: '#ef4444', color: '#ef4444', width: 'auto' }}
+                  {summary.statut === 'cloture' && (
+                    <div className={styles.modalFooter} >
+                      <button
+                        style={{ flex: 1 }}
+                        className={styles.DeleteBtn}
                         onClick={() => window.open(`http://localhost:8000${summary.fichier_path}`, '_blank')}
                         title="Voir le PDF"
                       >
@@ -907,46 +990,50 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                   )}
                 </>
               ) : (
-                <p>Impossible de charger le résumé.</p>
+                <p className={styles.tableEmptyMsg}>Impossible de charger le résumé.</p>
               )}
             </div>
           )}
           {modalType === 'addNote' && (
             <div className={styles.detailsForm}>
-              <h3 className={styles.modalTitle}><i className="bi bi-pencil-square" /> Ajouter une note</h3>
               {generalError && <div className={styles.fieldError}>{generalError}</div>}
-              
+
               <div className={styles.detailsContainer}>
-                <label>Sélectionner l'inventaire</label>
-                <select 
-                  className={styles.filterSelect} 
-                  value={selectedInventaireId} 
+                <label>Sélectionner l'inventaire :</label>
+                <select
+                  className={styles.filterSelect}
+                  style={{ width: '100%' }}
+                  value={selectedInventaireId}
                   onChange={e => setSelectedInventaireId(e.target.value ? parseInt(e.target.value) : '')}
                 >
                   <option value="">Choisir un inventaire...</option>
-                  {inventairesList.filter(inv => inv.statut !== 'termine').map(inv => (
-                    <option key={inv.id_inventaire} value={inv.id_inventaire}>{inv.titre || inv.site}</option>
-                  ))}
+                  {loadingInventaires ? (
+                    <option value="" disabled>Chargement...</option>
+                  ) : (
+                    inventairesList.filter(inv => inv.statut !== 'cloture').map(inv => (
+                      <option key={inv.id_inventaire} value={inv.id_inventaire}>{inv.titre || inv.site}</option>
+                    ))
+                  )}
                 </select>
               </div>
 
               <div className={styles.detailsContainer}>
                 <label>Contenu de la note</label>
-                <textarea 
-                  className={styles.noteContent} 
+                <textarea
+                  className={styles.noteContent}
                   placeholder="Écrivez votre message ici..."
                   value={noteContent}
                   onChange={e => setNoteContent(e.target.value)}
                 />
               </div>
 
-              <button 
-                className={styles.Submit} 
+              <button
+                className={styles.Submit}
                 onClick={() => handleNoteSubmit()}
                 disabled={submittingNote || !noteContent.trim() || !selectedInventaireId}
               >
                 {submittingNote ? (
-                  <>Envoi <span className={styles.loadingDots}></span></>
+                  <>Envoi <span className={layoutStyles.loadingDots}></span></>
                 ) : 'Envoyer la note'}
               </button>
             </div>
@@ -954,196 +1041,196 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
 
           {modalType === 'notes' && (
             <div className={styles.detailsForm}>
-              <h3 className={styles.modalTitle}>
-                 Notes : {selectedItem?.titre || selectedItem?.site}
-              </h3>
-                <div className={styles.noteThread}>
-                  {loadingNotes ? (
-                    <div className={styles.tableEmptyMsg}><span className={styles.loadingDots}></span></div>
-                  ) : notes.length === 0 ? (
-                    <p style={{ textAlign: 'center', color: '#94a3b8', padding: '1rem' }}>Aucune note pour le moment.</p>
-                  ) : (
-                    notes.map(note => {
-                      const user = JSON.parse(localStorage.getItem('user') || '{}');
-                      const isMine = String(note.user?.id) === String(user.id);
-                      const isAdmin = note.user?.role === 'admin';
-                      const canManage = isMine || user.role === 'admin';
-                      
-                      return (
-                        <div 
-                          key={note.id_note} 
-                          className={`${styles.noteBubble} ${isMine ? styles.noteBubbleMine : ''} ${isAdmin ? styles.noteAdmin : ''}`}
+              <div className={styles.noteThread}>
+                {loadingNotes ? (
+                  <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
+                ) : notes.length === 0 ? (
+                  <p className={styles.tableEmptyMsg}>Aucune note pour le moment.</p>
+                ) : (
+                  notes.map((note, index) => {
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    const isMine = String(note.user?.id) === String(user.id);
+                    const isAdmin = note.user?.role === 'admin';
+                    const canManage = isMine || note.user?.role === 'admin';
+                    const date = new Date(note.created_at);
+                    const today = new Date();
+                    const currentDate = date.toDateString();
+                    const previousDate =
+                      index > 0
+                        ? new Date(notes[index - 1].created_at).toDateString()
+                        : null;
+                    const isToday = date.toDateString() === today.toDateString();
+                    const showDate = currentDate !== previousDate;
+                    return (
+                      <div className={styles.noteContainer}>
+                        {showDate && !isToday && (
+                          <p className={styles.noteDay}>
+                            {date.toLocaleString('fr-FR', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                            })}
+                          </p>)}
+                        <div
+                          key={note.id_note}
+                          className={`${styles.noteBubble} ${isMine ? styles.noteBubbleMine : ''} `}
                         >
                           <div className={styles.noteUser}>
-                            {note.user?.nom} {note.user?.prenom}
-                            {isAdmin && <span className={styles.adminBadge}>Admin</span>}
-                            
-                            <div style={{ position: 'relative', marginLeft: 'auto' }}>
-                               {canManage && editingNoteId !== note.id_note && (
-                                  <div 
-                                    className={styles.noteMenuButton} 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setActiveNoteMenu(activeNoteMenu === note.id_note ? null : note.id_note);
-                                    }}
-                                  >
-                                    <i className="bi bi-three-dots-vertical" />
-                                  </div>
-                               )}
+                            <section>
+                              {note.user?.nom} {note.user?.prenom}
+                              {isAdmin && <span className={styles.adminBadge}>Admin</span>}
+                            </section>
+                            {canManage && editingNoteId !== note.id_note && (
 
-                               {activeNoteMenu === note.id_note && (
-                                  <div className={styles.noteMenu} onClick={e => e.stopPropagation()}>
-                                    <div className={styles.noteMenuItem} onClick={() => {
-                                      setEditingNoteId(note.id_note);
-                                      setEditNoteContent(note.contenu);
-                                      setActiveNoteMenu(null);
-                                    }}>
-                                      <i className="bi bi-pencil" /> Modifier
-                                    </div>
-                                    <div className={`${styles.noteMenuItem} ${styles.deleteItem}`} onClick={() => {
-                                      handleNoteDelete(note.id_note);
-                                      setActiveNoteMenu(null);
-                                    }}>
-                                      <i className="bi bi-trash" /> Supprimer
-                                    </div>
-                                  </div>
-                               )}
-                            </div>
+                              <div className={styles.noteMenu} onClick={e => e.stopPropagation()}>
+                                <div className={styles.noteMenuItem} onClick={() => {
+                                  setEditingNoteId(note.id_note);
+                                  setEditNoteContent(note.contenu);
+                                }}>
+                                  <i className="bi bi-pencil" />
+                                </div>
+                                <div className={`${styles.noteMenuItem} ${styles.deleteItem}`} onClick={() => {
+                                  handleNoteDelete(note.id_note);
+                                }}>
+                                  <i className="bi bi-trash" />
+                                </div>
+                              </div>
+
+                            )}
                           </div>
-                          
+
                           {editingNoteId === note.id_note ? (
-                            <div style={{ width: '100%' }}>
-                              <textarea 
-                                className={styles.textareaInput} 
-                                style={{ minHeight: '50px', fontSize: '0.75rem', padding: '5px' }}
-                                value={editNoteContent} 
-                                onChange={e => setEditNoteContent(e.target.value)} 
+                            <div >
+                              <textarea
+                                className={styles.noteText}
+                                value={editNoteContent}
+                                onChange={e => setEditNoteContent(e.target.value)}
                                 autoFocus
                               />
-                              <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
-                                <button className={styles.addButton} style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => handleNoteUpdate(note.id_note)} disabled={submittingNote}>Valider</button>
-                                <button className={styles.ActionButton} style={{ padding: '2px 8px', fontSize: '0.65rem' }} onClick={() => setEditingNoteId(null)}>Annuler</button>
+                              <div>
+                                <button className={styles.noteActions} style={{ color: 'red' }} onClick={() => handleNoteUpdate(note.id_note)} disabled={submittingNote}>✓</button>
+                                <button className={styles.noteActions} onClick={() => setEditingNoteId(null)}>✕</button>
                               </div>
                             </div>
                           ) : (
-                            <p style={{ margin: 0, fontSize: '0.75rem', color: isMine ? '#0c4a6e' : '#1e293b', whiteSpace: 'pre-wrap' }}>{note.contenu}</p>
+                            <p className={styles.noteText} >{note.contenu}</p>
                           )}
 
                           <div className={styles.noteTime}>
                             {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            {isMine && <i className={`bi bi-check2-all ${note.lu ? 'text-primary' : 'text-primary'}`} style={{ color: note.lu ? '#3b82f6' : '#94a3b8' }} />}
                           </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {selectedItem.statut !== 'termine' ? (
-                  <div className={styles.marginT1} style={{ borderTop: '1px solid #eee', paddingTop: '1rem' }}>
-                    <label style={{ fontSize: '0.7rem' }}>Nouvelle note</label>
-                    <textarea 
-                        className={styles.noteContent}
-                        placeholder="Ajouter une réponse ou instruction..."
-                        value={noteContent}
-                        onChange={e => setNoteContent(e.target.value)}
-                        disabled={submittingNote}
-                    />
-                    <button 
-                      className={styles.Submit} 
-                      style={{ marginTop: '0.5rem' }} 
-                      onClick={() => handleNoteSubmit(selectedItem.id_inventaire)}
-                      disabled={submittingNote || !noteContent.trim()}
-                    >
-                      {submittingNote ? (
-                        <>Envoi <span className={styles.loadingDots}></span></>
-                      ) : 'Ajouter'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className={styles.noteLocked}>
-                    <i className="bi bi-lock-fill" /> Cet inventaire est terminé. Les notes sont en lecture seule.
-                  </div>
+                        </div></div>
+                    );
+                  })
                 )}
               </div>
-     
+
+              {selectedItem.statut !== 'cloture' ? (
+                <div >
+                  <label >Nouvelle note :</label>
+                  <textarea
+                    className={styles.noteContent}
+                    placeholder="Ajouter une réponse ou instruction..."
+                    value={noteContent}
+                    onChange={e => setNoteContent(e.target.value)}
+                    disabled={submittingNote}
+                  />
+                  <button
+                    className={styles.Submit}
+                    onClick={() => handleNoteSubmit(selectedItem.id_inventaire)}
+                    disabled={submittingNote || !noteContent.trim()}
+                  >
+                    {submittingNote ? (
+                      <>Envoi <span className={layoutStyles.loadingDots}>Envoi en cours</span></>
+                    ) : 'Ajouter'}
+                  </button>
+                </div>
+              ) : (
+                <div className={`${styles.noteContent} ${styles.modalFooter}`} >
+                  <i className="bi bi-lock-fill" /> Cet inventaire est cloturé. Les notes sont en lecture seule.
+                </div>
+              )}
+            </div>
+
           )}
 
           {modalType === 'correctionRequests' && (
             <div className={styles.detailsForm}>
-              <h3 className={styles.modalTitle} >
-                <i className="bi bi-patch-check" /> Demandes de Correction
-              </h3>
-              
-              <div className={styles.detailsContainer}>
-                {loadingCorrections ? (
-                  <div className={styles.tableEmptyMsg}><span className={styles.loadingDots}></span></div>
-                ) : (corrections && corrections.length === 0) ? (
-                  <p style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>Aucune demande en attente.</p>
-                ) : (
+              {/* Barre de recherche */}
+              <div className={styles.InputGroup} style={{ marginBottom: '1rem' }}>
+                <i className="bi bi-search" />
+                <input
+                  type="text"
+                  placeholder="Rechercher par titre inventaire ou nom article..."
+                  value={correctionSearch}
+                  onChange={e => setCorrectionSearch(e.target.value)}
+                />
+              </div>
+
+              {loadingCorrections ? (
+                <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
+              ) : (() => {
+                const filtered = corrections.filter(corr => {
+                  const search = correctionSearch.toLowerCase();
+                  const titre = (corr.ligne?.inventaire?.titre || corr.ligne?.inventaire?.site || '').toLowerCase();
+                  const nomArticle = (corr.ligne?.article?.nom || '').toLowerCase();
+                  return titre.includes(search) || nomArticle.includes(search);
+                });
+                if (filtered.length === 0) {
+                  return <p className={styles.tableEmptyMsg}>Aucune demande en attente.</p>;
+                }
+                return (
                   <div className={styles.scrollList} style={{ maxHeight: '500px' }}>
-                    {corrections.map((corr) => (
+                    {filtered.map((corr) => (
                       <div key={corr.id_corr} className={styles.correctionCard}>
-                        <div className={styles.sectionHeader}>
-                          <h4 style={{ margin: 0, color: '#1e293b' }}>
-                            {corr.ligne?.article?.nom} 
-                            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '10px' }}>({corr.ligne?.article?.code_barres})</span>
-                          </h4>
-                          <span className={styles.statusBadge} style={{ 
-                            backgroundColor: corr.statut_validation === 'valide' ? '#dcfce7' : (corr.statut_validation === 'refuse' ? '#fee2e2' : '#fef9c3'),
-                            color: corr.statut_validation === 'valide' ? '#166534' : (corr.statut_validation === 'refuse' ? '#991b1b' : '#854d0e')
-                          }}>
-                            {corr.statut_validation}
+                        <div className={styles.correctionHeader}>
+                          <h3>
+                            {corr.ligne?.article?.nom} <span>({corr.ligne?.article?.code_barres})</span>
+                          </h3>
+                          <span className={styles.statusEnAttente}>
+                            en attente
                           </span>
                         </div>
 
-                        <div className={styles.detailsGrid} style={{ marginTop: '10px', fontSize: '0.85rem' }}>
-                          <div><strong>Inventaire:</strong> {corr.ligne?.inventaire?.titre || corr.ligne?.inventaire?.site}</div>
-                          <div><strong>Agent:</strong> {corr.agent?.nom} {corr.agent?.prenom}</div>
-                          <div><strong>Ancienne Qte:</strong> {corr.ligne?.quantite_comptee}</div>
-                          <div className={styles.correctionQtyHighlight}><strong>Nouvelle Qte:</strong> {corr.qte}</div>
-                        </div>
-
-                        <div className={styles.correctionMotifBox}>
-                          <p style={{ margin: 0, fontSize: '0.8rem', color: 'inherit' }}><strong>Motif Agent:</strong> {corr.description}</p>
-                        </div>
-
-                        {corr.statut_validation === 'en attente' && (
-                          <div style={{ marginTop: '15px' }}>
-                            <textarea 
-                              className={styles.textareaInput}
-                              style={{ minHeight: '50px', fontSize: '0.8rem', marginBottom: '10px' }}
-                              placeholder="Motif de rejet (obligatoire si refusé)..."
-                              value={rejectionMotif}
-                              onChange={e => setRejectionMotif(e.target.value)}
-                            />
-                            <div className={styles.flexRowCenter} style={{ gap: '10px' }}>
-                              <button 
-                                className={styles.addButton} 
-                                style={{ background: '#22c55e', border: 'none' }}
-                                onClick={() => handleCorrectionAction(corr.id_corr, 'valide')}
-                                disabled={submittingNote}
-                              >
-                                <i className="bi bi-check-lg" /> Approuver
-                              </button>
-                              <button 
-                                className={styles.Submit} 
-                                style={{ background: '#ef4444', border: 'none', width: 'auto', marginTop: 0 }}
-                                onClick={() => handleCorrectionAction(corr.id_corr, 'refuse')}
-                                disabled={submittingNote}
-                              >
-                                <i className="bi bi-x-lg" /> Refuser
-                              </button>
-                            </div>
+                        <div className={styles.correctionDetails}>
+                          <div><i className="bi bi-clipboard2-check" /><strong> Inventaire:</strong> {corr.ligne?.inventaire?.titre || corr.ligne?.inventaire?.site}</div>
+                          <div><i className="bi bi-person" /><strong> Agent:</strong> {corr.agent?.nom} {corr.agent?.prenom}</div>
+                          <div>
+                            <i className="bi bi-arrow-down-circle" />
+                            <strong> Quantité à soustraire:</strong>{' '}
+                            <span style={{ color: '#dc3545', fontWeight: 700 }}>-{corr.qte}</span>
+                            <span style={{ color: '#64748b', fontSize: '0.65rem', marginLeft: '6px' }}>
+                              (comptée: {corr.ligne?.quantite_comptee} → {Math.max(0, (corr.ligne?.quantite_comptee ?? 0) - corr.qte)})
+                            </span>
                           </div>
-                        )}
+                          {corr.description ? (
+                            <fieldset className={styles.correctionMotifBox}>
+                              <legend>Remarque:</legend> {corr.description}
+                            </fieldset>
+                          ) : null}
+                        </div>
 
-
+                        <div className={styles.flexRowCenter}>
+                          <button
+                            className={styles.ActionButton}
+                            onClick={() => handleCorrectionAction(corr.id_corr, 'valide')}
+                            disabled={submittingNote}
+                          >
+                            <i className="bi bi-check-lg" /> Valider
+                          </button>
+                          <button
+                            className={styles.DeleteBtn}
+                            onClick={() => handleCorrectionAction(corr.id_corr, 'refuse')}
+                            disabled={submittingNote}
+                          >
+                            <i className="bi bi-x-lg" /> Refuser
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           )}
         </div>

@@ -1,34 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../../services/api';
-import styles from './Gestions.module.css';
-import { formatCurrency, getCurrencySymbol, formatCompactNumber } from '../../../utils/formatters';
-
+import api from '../../../../services/api';
+import styles from '../Gestions.module.css';
+import { formatCurrency, getCurrencySymbol, formatCompactNumber } from '../../../../utils/formatters';
+import layoutStyles from '../../../../components/layout/layout.module.css';
 /* ================= TYPES ================= */
-
 type Category = {
   id_category: number;
   nom: string;
   description?: string;
 };
-
 type Entrepot = {
   id_entrepot: number;
   nom: string;
   location?: string;
 };
-
 type EntrepotQte = {
   id_entrepot: number;
   quantite: number;
 };
-
 type LigneInventaire = {
   id_ligne: number;
   id_inventaire: number;
   quantite_comptee: number;
   ecart: number;
 };
-
 type Article = {
   id_article?: number;
   code_barres: string;
@@ -40,9 +35,7 @@ type Article = {
   entrepots: (Entrepot & { pivot?: { quantite: number } })[];
   lignes_inventaire?: LigneInventaire[];
 };
-
 /* ================= ARTICLE MODAL ================= */
-
 type ArticleModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -52,7 +45,6 @@ type ArticleModalProps = {
   entrepots: Entrepot[];
   onReloadSettings?: () => void;
 };
-
 export const ArticleFormModal: React.FC<ArticleModalProps> = ({
   isOpen,
   onClose,
@@ -72,14 +64,12 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
     entrepots: [] as EntrepotQte[],
     quantite_total: 0
   });
-
   const [qteMode, setQteMode] = useState<'totale' | 'entrepot'>('totale');
   const [loading, setLoading] = useState(false);
   const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [newCatName, setNewCatName] = useState('');
   const [newEntName, setNewEntName] = useState('');
-
   const addInlineCategory = async () => {
     if (!newCatName.trim()) return;
     try {
@@ -88,7 +78,6 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
       onReloadSettings?.();
     } catch { /* ignore */ }
   };
-
   const addInlineEntrepot = async () => {
     if (!newEntName.trim()) return;
     try {
@@ -97,7 +86,6 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
       onReloadSettings?.();
     } catch { /* ignore */ }
   };
-
   useEffect(() => {
     if (selectedArticle) {
       const hasEntrepots = selectedArticle.entrepots && selectedArticle.entrepots.length > 0;
@@ -128,9 +116,7 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
     }
     setFieldErrors({});
   }, [selectedArticle, isOpen]);
-
   if (!isOpen) return null;
-
   const toggleEntrepot = (id: number) => {
     const exists = form.entrepots.find(e => e.id_entrepot === id);
     if (exists) {
@@ -139,14 +125,12 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
       setForm({ ...form, entrepots: [...form.entrepots, { id_entrepot: id, quantite: 0 }] });
     }
   };
-
   const updateQte = (id: number, val: number) => {
     setForm({
       ...form,
       entrepots: form.entrepots.map(e => e.id_entrepot === id ? { ...e, quantite: val } : e)
     });
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -172,32 +156,34 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
       if (err.response?.data?.errors) {
         setFieldErrors(err.response.data.errors);
         setAlertMsg({ type: 'error', text: "Veuillez corriger les erreurs ci-dessous" });
+      } else if (err.response?.data?.message) {
+        const msg = err.response.data.message;
+        if (msg.includes('SQLSTATE') || msg.includes('SQL:')) {
+          setAlertMsg({ type: 'error', text: "Erreur lors de la sauvegarde. Vérifiez vos données." });
+        } else {
+          setAlertMsg({ type: 'error', text: msg });
+        }
+      } else if (err.response?.status === 500) {
+        setAlertMsg({ type: 'error', text: "Erreur serveur. Vérifiez vos données et réessayez." });
       } else {
-        setAlertMsg({ type: 'error', text: err.response?.data?.message || "Erreur lors de la sauvegarde" });
+        setAlertMsg({ type: 'error', text: "Erreur lors de la sauvegarde" });
       }
     } finally {
       setLoading(false);
     }
   };
-
   return (
     <div className={styles.modalOverlay}>
-      <div className={`${styles.modalPanel} ${styles.modalContentWide}`}>
-        <div className={styles.modalHeaderRow}>
-          <h3 className={styles.modalTitle}>{selectedArticle ? 'Modifier' : 'Nouveau'} Article</h3>
-          <button className={styles.dashboardMenuToggle} onClick={onClose}><i className="bi bi-x-lg" /></button>
+      <div className={styles.modalPanel} >
+        <div className={styles.modalHeader}>
+          <h3 >Nouveau article</h3>
+          <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-
-        {alertMsg && (
-          <div className={`${styles.alertBox} ${alertMsg.type === 'success' ? styles.alertSuccess : styles.alertError}`}>
-            {alertMsg.text}
-          </div>
-        )}
-
+       
         <form onSubmit={handleSubmit} className={`${styles.detailsForm} ${styles.modalContent}`}>
           <div className={styles.detailsGrid}>
             <label>
-              Code-barres
+              Code-barres 
               <div className={styles.InputGroup}>
                 <i className="bi bi-qr-code-scan" />
                 <input placeholder="EX: 12345678" value={form.code_barres} onChange={e => setForm({ ...form, code_barres: e.target.value })} required />
@@ -208,18 +194,17 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
               Nom de l'article
               <div className={styles.InputGroup}>
                 <i className="bi bi-tag" />
-                <input placeholder="EX: PC Portable" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} required />
+                <input placeholder="EX: PC Portable" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
               </div>
               {fieldErrors.nom && <span className={styles.fieldError}>{fieldErrors.nom[0]}</span>}
             </label>
           </div>
-
           <div className={styles.detailsGrid}>
             <label>
               Prix ({currency})
               <div className={styles.InputGroup}>
                 <i className="bi bi-cash-stack" />
-                <input type="number" step="0.01" min={0} value={form.prix} onChange={e => setForm({ ...form, prix: parseFloat(e.target.value) || 0 })} />
+                <input type="number" step="0.01" min={0} placeholder="0" value={form.prix} onChange={e => setForm({ ...form, prix: parseFloat(e.target.value) || 0 })} />
               </div>
               {fieldErrors.prix && <span className={styles.fieldError}>{fieldErrors.prix[0]}</span>}
             </label>
@@ -232,12 +217,11 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
               {fieldErrors.etat && <span className={styles.fieldError}>{fieldErrors.etat[0]}</span>}
             </label>
           </div>
-
-          <div className={styles.marginT1}>
+          <div >
             <p className={styles.sectionTitle}>Catégories</p>
-            <div className={`${styles.list} ${styles.scrollList}`}>
-              {categories.map(c => (
-                <label key={c.id_category} className={`${styles.checkboxLabel} ${styles.marginB1} ${styles.marginB05}`}>
+            <div className={styles.scrollList}>
+             {categories.length > 0 ? categories.map(c => (
+                <label key={c.id_category} className={styles.scrollListItem} title={c.nom}>
                   <input
                     type="checkbox"
                     className={styles.checkbox}
@@ -250,38 +234,41 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
                       }
                     }}
                   />
-                  {c.nom}
+                  {c.nom.length > 50 ? c.nom.slice(0, 50) + '...' : c.nom}
                 </label>
-              ))}
+              )) : (
+                <p className={styles.emptyMsg}>Aucune catégorie disponible</p>
+              )}
             </div>
             <div className={styles.inlineAddRow}>
-              <div className={`${styles.InputGroup} ${styles.flex1}`}>
+              <div className={styles.InputGroup} style={{ flex: 1 }}>
                 <i className="bi bi-plus" />
-                <input placeholder="Nouvelle catégorie..." value={newCatName} onChange={e => setNewCatName(e.target.value)}
+                <input placeholder="Nouvelle catégorie..." max={20} value={newCatName} onChange={e => setNewCatName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInlineCategory(); } }} />
               </div>
               <button type="button" className={styles.inlineAddBtn} onClick={addInlineCategory}>Ajouter</button>
             </div>
           </div>
-
-          <div className={styles.marginT1}>
+          <div >
             <p className={styles.sectionTitle}>Gestion de la Quantité</p>
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-              <label className={styles.checkboxLabel}>
+            <div className={styles.radioGroup}>
+              <label className={styles.scrollListItem}>
                 <input type="radio" checked={qteMode === 'totale'} onChange={() => setQteMode('totale')} className={styles.checkbox} style={{ borderRadius: '50%' }} />
                 Quantité Globale
               </label>
-              <label className={styles.checkboxLabel}>
+              <label className={styles.scrollListItem}>
                 <input type="radio" checked={qteMode === 'entrepot'} onChange={() => setQteMode('entrepot')} className={styles.checkbox} style={{ borderRadius: '50%' }} />
                 Quantité par Entrepôt
               </label>
             </div>
-
             {qteMode === 'totale' ? (
               <div>
-                <div className={styles.InputGroup}>
+                <label >
+                  Quantité Totale 
+                </label>
+                <div className={styles.InputGroup}style={{ flex: 1 }}>
                   <i className="bi bi-calculator" />
-                  <input type="number" min={0} value={form.quantite_total} onChange={e => setForm({ ...form, quantite_total: parseInt(e.target.value) || 0 })} placeholder="Quantité Totale" />
+                  <input type="number" min={0} value={form.quantite_total} onChange={e => setForm({ ...form, quantite_total: parseInt(e.target.value) || 0 })} placeholder="0" required />
                 </div>
               </div>
             ) : (
@@ -290,8 +277,8 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
                   {entrepots.map(en => {
                     const selected = form.entrepots.find(e => e.id_entrepot === en.id_entrepot);
                     return (
-                      <div key={en.id_entrepot} className={styles.entrepotRow}>
-                        <label className={styles.checkboxLabel}>
+                      <div key={en.id_entrepot} >
+                        <label className={styles.scrollListItem}>
                           <input
                             type="checkbox"
                             className={styles.checkbox}
@@ -315,7 +302,7 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
                   })}
                 </div>
                 <div className={styles.inlineAddRow}>
-                  <div className={`${styles.InputGroup} ${styles.flex1}`}>
+                  <div className={`${styles.InputGroup}`}style={{ flex: 1 }}>
                     <i className="bi bi-plus" />
                     <input placeholder="Nouvel entrepôt..." value={newEntName} onChange={e => setNewEntName(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInlineEntrepot(); } }} />
@@ -325,18 +312,15 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
               </>
             )}
           </div>
-
-          <button type="submit" className={`${styles.Submit} ${styles.marginT15}`} disabled={loading}>
-            {loading ? 'Traitement...' : (selectedArticle ? 'Mettre à jour' : 'Créer l\'article')}
+          <button type="submit" className={styles.Submit}  disabled={loading}>
+            {loading ? <span className={layoutStyles.loadingDots}>Traitement</span>: (selectedArticle ? 'Mettre à jour' : 'Créer l\'article')}
           </button>
         </form>
       </div>
     </div>
   );
 };
-
 /* ================= ARTICLE DETAILS MODAL ================= */
-
 type ArticleDetailsModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -345,8 +329,9 @@ type ArticleDetailsModalProps = {
   entrepots: Entrepot[];
   onUpdate: (form: any) => Promise<void>;
   onReloadSettings?: () => void;
+  onReject?: () => void;
+  onAccept?: () => void;
 };
-
 export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -354,16 +339,20 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
   categories,
   entrepots,
   onUpdate,
+  onReject,
+  onAccept,
 }) => {
   const currency = getCurrencySymbol();
   const [editSections, setEditSections] = useState({ info: false, categories: false, stock: false });
   const [form, setForm] = useState<any>(null);
   const [qteDetailsMode, setQteDetailsMode] = useState<'totale' | 'entrepot'>('totale');
-
+  const [initialQteDetailsMode, setInitialQteDetailsMode] = useState<'totale' | 'entrepot'>('totale');
   useEffect(() => {
     if (article) {
       const hasEntrepots = article.entrepots && article.entrepots.length > 0;
-      setQteDetailsMode(hasEntrepots ? 'entrepot' : 'totale');
+      const initMode = hasEntrepots ? 'entrepot' : 'totale';
+      setQteDetailsMode(initMode);
+      setInitialQteDetailsMode(initMode);
       setForm({
         code_barres: article.code_barres,
         nom: article.nom,
@@ -379,22 +368,38 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
       setEditSections({ info: false, categories: false, stock: false });
     }
   }, [article, isOpen]);
-
   if (!isOpen || !article || !form) return null;
+ const handleSave = async () => {
+  try {
+    setFieldErrors({});
 
-  const handleSave = async () => {
-    try {
-      await onUpdate(form);
-      setEditSections({ info: false, categories: false, stock: false });
-    } catch (err) {
-      console.error(err);
+    await onUpdate(form);
+
+    setEditSections({
+      info: false,
+      categories: false,
+      stock: false
+    });
+
+  } catch (err: any) {
+
+    if (err.response?.data?.errors) {
+      setFieldErrors(err.response.data.errors);
+    } else {
+      alert(
+        err.response?.data?.message ||
+        "Une erreur s'est produite lors de la modification."
+      );
     }
-  };
 
+    console.error(err);
+  }
+};
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   return (
     <div className={styles.modalOverlay}>
       <div className={`${styles.modalPanel} ${styles.modalContentWide}`}>
-        <div className={styles.modalHeaderRow}>
+        <div className={styles.modalHeader}>
           <div className={styles.sectionHeader} style={{ flex: 1 }}>
             <h3 className={styles.modalTitle}>
               <span>Détails de </span> {article.nom}
@@ -402,20 +407,29 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
           </div>
           
           {article.etat === 'inconnu' && (
-            <button 
-              className={styles.validerBtn} 
-              onClick={() => onUpdate({ ...form, etat: 'connu' })}
-            >
-              <i className="bi bi-check-circle"  />
-              Marquer comme connu
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className={styles.validerBtn} 
+                onClick={onAccept}
+              >
+                <i className="bi bi-check-circle"  />
+                Marquer comme connu
+              </button>
+              {onReject && (
+                <button 
+                  className={styles.DeleteBtn} 
+                  onClick={onReject}
+                >
+                  <i className="bi bi-x-circle"  />
+                  Rejeter
+                </button>
+              )}
+            </div>
           )}
           
-          <button className={styles.dashboardMenuToggle} onClick={onClose}><i className="bi bi-x-lg" /></button>
+          <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-
        
-
         <div className={styles.modalContent}>
         <div className={styles.detailsForm}>
            {article.etat === 'inconnu' && (
@@ -429,23 +443,24 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
           <div className={styles.detailsContainer}>
             <div className={styles.sectionHeader}>
               <h4 className={styles.sectionTitle}>Informations de base :</h4>
-              <button className={styles.editMiniBtn} onClick={() => {
-                if (editSections.info) {
-                  const hasChanged = 
-                    form.code_barres !== (article.code_barres || '') ||
-                    form.nom !== (article.nom || '') ||
-                    form.prix !== (article.prix || 0);
-                  
-                  if (hasChanged) handleSave();
-                  else setEditSections({ ...editSections, info: false });
-                } else {
-                  setEditSections({ ...editSections, info: true });
-                }
-              }}>
-                {editSections.info ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
-              </button>
+              {article.etat !== 'inconnu' && (
+                <button className={styles.editMiniBtn} onClick={() => {
+                  if (editSections.info) {
+                    const hasChanged = 
+                      form.code_barres !== (article.code_barres || '') ||
+                      form.nom !== (article.nom || '') ||
+                      form.prix !== (article.prix || 0);
+                    
+                    if (hasChanged) handleSave();
+                    else setEditSections({ ...editSections, info: false });
+                  } else {
+                    setEditSections({ ...editSections, info: true });
+                  }
+                }}>
+                  {editSections.info ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
+                </button>
+              )}
             </div>
-
             {!editSections.info ? (
               <div className={styles.displayList}>
                 <div className={styles.displayItem}><strong>Code-barres:</strong> {article.code_barres}</div>
@@ -460,39 +475,55 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
                     <div className={styles.InputGroup}>
                         <input type="text" value={form.code_barres} onChange={e => setForm({ ...form, code_barres: e.target.value })} />
                     </div>
+                     {fieldErrors.code_barres && (
+    <span className={styles.fieldError}>
+      {fieldErrors.code_barres[0]}
+    </span>
+  )}
                 </div>
                 <div>
                     <label>Nom</label>
                     <div className={styles.InputGroup}>
                         <input type="text" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
                     </div>
+                     {fieldErrors.nom && (
+    <span className={styles.fieldError}>
+      {fieldErrors.nom[0]}
+    </span>
+  )}
                 </div>
                 <div>
                     <label>Prix ({currency})</label>
                     <div className={styles.InputGroup}>
                         <input type="number" step="0.001" value={form.prix} onChange={e => setForm({ ...form, prix: parseFloat(e.target.value) || 0 })} />
                     </div>
+                     {fieldErrors.prix && (
+    <span className={styles.fieldError}>
+      {fieldErrors.prix[0]}
+    </span>
+  )}
                 </div>
               </div>
             )}
           </div>
-
           <div className={styles.detailsContainer}>
             <div className={styles.sectionHeader}>
               <h4 className={styles.sectionTitle}>Catégories :</h4>
-              <button className={styles.editMiniBtn} onClick={() => {
-                if (editSections.categories) {
-                  const origCats = article.categories?.map(c => c.id_category) || [];
-                  const hasChanged = JSON.stringify(form.categories.sort()) !== JSON.stringify(origCats.sort());
-                  
-                  if (hasChanged) handleSave();
-                  else setEditSections({ ...editSections, categories: false });
-                } else {
-                  setEditSections({ ...editSections, categories: true });
-                }
-              }}>
-                {editSections.categories ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
-              </button>
+              {article.etat !== 'inconnu' && (
+                <button className={styles.editMiniBtn} onClick={() => {
+                  if (editSections.categories) {
+                    const origCats = article.categories?.map(c => c.id_category) || [];
+                    const hasChanged = JSON.stringify(form.categories.sort()) !== JSON.stringify(origCats.sort());
+                    
+                    if (hasChanged) handleSave();
+                    else setEditSections({ ...editSections, categories: false });
+                  } else {
+                    setEditSections({ ...editSections, categories: true });
+                  }
+                }}>
+                  {editSections.categories ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
+                </button>
+              )}
             </div>
             {!editSections.categories ? (
               <div className={styles.displayList}>
@@ -502,9 +533,9 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
                 }
               </div>
             ) : (
-              <div className={`${styles.list} ${styles.scrollList}`} style={{ maxHeight: '150px' }}>
+              <div className={`${styles.list} ${styles.scrollList}`} >
                 {categories.map(c => (
-                  <label key={c.id_category} className={styles.checkboxLabel}>
+                  <label key={c.id_category}className={styles.scrollListItem}>
                     <input type="checkbox" className={styles.checkbox} checked={form.categories.includes(c.id_category)} onChange={e => {
                       if (e.target.checked) setForm({ ...form, categories: [...form.categories, c.id_category] });
                       else setForm({ ...form, categories: form.categories.filter((id: number) => id !== c.id_category) });
@@ -514,30 +545,32 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
               </div>
             )}
           </div>
-
           <div className={styles.detailsContainer}>
             <div className={styles.sectionHeader}>
               <h4 className={styles.sectionTitle}>Stock & Emplacements :</h4>
-              <button className={styles.editMiniBtn} onClick={() => {
-                if (editSections.stock) {
-                  const origEntrepots = article.entrepots?.map(e => ({
-                    id_entrepot: e.id_entrepot,
-                    quantite: e.pivot?.quantite || 0
-                  })) || [];
-                  
-                  const hasChanged = 
-                    form.quantite_total !== (article.quantite_total || 0) ||
-                    JSON.stringify(form.entrepots.sort((a:any, b:any) => a.id_entrepot - b.id_entrepot)) !== 
-                    JSON.stringify(origEntrepots.sort((a:any, b:any) => a.id_entrepot - b.id_entrepot));
+              {article.etat !== 'inconnu' && (
+                <button className={styles.editMiniBtn} onClick={() => {
+                  if (editSections.stock) {
+                    const origEntrepots = article.entrepots?.map(e => ({
+                      id_entrepot: e.id_entrepot,
+                      quantite: e.pivot?.quantite || 0
+                    })) || [];
+                    const sortedFormEnt = [...form.entrepots].sort((a, b) => a.id_entrepot - b.id_entrepot);
+                    const sortedOrigEnt = [...origEntrepots].sort((a, b) => a.id_entrepot - b.id_entrepot);
+                    
+                    const hasChanged = JSON.stringify(sortedFormEnt) !== JSON.stringify(sortedOrigEnt) || 
+                                       form.quantite_total !== (article.quantite_total || 0) ||
+                                       qteDetailsMode !== initialQteDetailsMode;
 
-                  if (hasChanged) handleSave();
-                  else setEditSections({ ...editSections, stock: false });
-                } else {
-                  setEditSections({ ...editSections, stock: true });
-                }
-              }}>
-                {editSections.stock ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
-              </button>
+                    if (hasChanged) handleSave();
+                    else setEditSections({ ...editSections, stock: false });
+                  } else {
+                    setEditSections({ ...editSections, stock: true });
+                  }
+                }}>
+                  {editSections.stock ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
+                </button>
+              )}
             </div>
             {!editSections.stock ? (
               <div className={styles.displayList}>
@@ -550,17 +583,22 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
               </div>
             ) : (
               <div className={styles.list}>
-                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                  <label className={styles.checkboxLabel}>
-                    <input type="radio" checked={qteDetailsMode === 'totale'} onChange={() => setQteDetailsMode('totale')} className={styles.checkbox} style={{ borderRadius: '50%' }} />
+                <div className={styles.radioGroup}>
+                  <label className={styles.scrollListItem}>
+                    <input type="radio" checked={qteDetailsMode === 'totale'} onChange={() => {
+                      setQteDetailsMode('totale');
+                      setForm((prev: any) => ({ ...prev, entrepots: [], quantite_total: prev.quantite_total ?? (article.quantite_total || 0) }));
+                    }} className={styles.checkbox} style={{ borderRadius: '50%' }} />
                     Quantité Globale
                   </label>
-                  <label className={styles.checkboxLabel}>
-                    <input type="radio" checked={qteDetailsMode === 'entrepot'} onChange={() => setQteDetailsMode('entrepot')} className={styles.checkbox} style={{ borderRadius: '50%' }} />
+                  <label className={styles.scrollListItem}>
+                    <input type="radio" checked={qteDetailsMode === 'entrepot'} onChange={() => {
+                      setQteDetailsMode('entrepot');
+                      setForm((prev: any) => ({ ...prev, entrepots: prev.entrepots && prev.entrepots.length ? prev.entrepots : (article.entrepots?.map((e:any) => ({ id_entrepot: e.id_entrepot, quantite: e.pivot?.quantite || 0 })) || []), quantite_total: prev.quantite_total ?? (article.quantite_total || 0) }));
+                    }} className={styles.checkbox} style={{ borderRadius: '50%' }} />
                     Quantité par Entrepôt
                   </label>
                 </div>
-
                 {qteDetailsMode === 'totale' ? (
                   <div>
                     <label>Qté Totale</label>
@@ -569,12 +607,12 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className={styles.scrollList} style={{ maxHeight: '200px' }}>
+                  <div className={styles.scrollList} >
                     {entrepots.map(en => {
                       const selected = form.entrepots.find((e: any) => e.id_entrepot === en.id_entrepot);
                       return (
                         <div key={en.id_entrepot} className={styles.entrepotRow} style={{ marginBottom: '10px' }}>
-                          <label className={styles.checkboxLabel}>
+                          <label className={styles.scrollListItem}>
                             <input
                               type="checkbox"
                               className={styles.checkbox}
@@ -607,7 +645,6 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
               </div>
             )}
         
-
         </div>
           <div className={styles.detailsContainer}>
             <h4 className={styles.sectionTitle}>Présence dans les inventaires :</h4>
@@ -619,6 +656,7 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
                   const getStatusColor = (s: string) => {
                     if (s === 'en cours') return '#22c55e';
                     if (s === 'termine' || s === 'terminé') return '#ef4444';
+                    if (s === 'cloture' || s === 'cloturé') return '#ef4444';
                     return '#f59e0b'; 
                   };
                   const ecartVal = l.ecart;
@@ -654,9 +692,7 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
     </div>
   );
 };
-
 /* ================= MANAGE SETTINGS MODAL ================= */
-
 type ManageSettingsModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -664,20 +700,21 @@ type ManageSettingsModalProps = {
   items: any[];
   onSave: (data: any) => void;
   onDelete: (id: number) => void;
+  onDeleteAll?: () => void;
 };
-
 export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
   isOpen,
   onClose,
   type,
   items,
   onSave,
-  onDelete
+  onDelete,
+  onDeleteAll
 }) => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [name, setName] = useState('');
   const [extra, setExtra] = useState('');
-
+    const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (isOpen) {
         setName('');
@@ -685,28 +722,31 @@ export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
         setEditingItem(null);
     }
   }, [isOpen]);
-
   if (!isOpen) return null;
-
   const handleSave = () => {
     if (!name.trim()) return;
     const payload: any = { nom: name };
     if (editingItem) payload.id = editingItem.id_category || editingItem.id_entrepot;
     if (type === 'categories') payload.description = extra;
     else payload.location = extra;
-
-    onSave(payload);
-    setName('');
-    setExtra('');
-    setEditingItem(null);
+    const doSave = async () => {
+      try {
+        setSaving(true);
+        await onSave(payload);
+      } finally {
+        setSaving(false);
+        setName('');
+        setExtra('');
+        setEditingItem(null);
+      }
+    };
+    doSave();
   };
-
   const handleEditClick = (item: any) => {
     setEditingItem(item);
     setName(item.nom);
     setExtra(type === 'categories' ? item.description|| '' : item.location|| '');
   };
-
   const handleDelete = async (item: any) => {
     const id = item.id_category || item.id_entrepot;
     if (type === 'entrepots') {
@@ -720,16 +760,31 @@ export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
     }
     onDelete(id);
   };
-
+  const handleDeleteAll = () => {
+    const label = type === 'categories' ? 'catégories' : 'entrepôts';
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer TOUS les ${label} ? Cette action est irréversible.`)) return;
+    onDeleteAll?.();
+  };
   return (
     <div className={styles.modalOverlay}>
       <div className={styles.modalPanel}>
-        <div className={styles.modalHeaderRow}>
+        <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle}>Gérer les {type === 'categories' ? 'Catégories' : 'Entrepôts'}</h3>
-          <button className={styles.dashboardMenuToggle} onClick={onClose}><i className="bi bi-x-lg" /></button>
+          <div >
+            {items.length > 0 && onDeleteAll && (
+              <button
+                onClick={handleDeleteAll}
+                className={styles.DeleteBtn}
+                title={`Supprimer tous les ${type === 'categories' ? 'catégories' : 'entrepôts'}`}
+              >
+                <i className="bi bi-trash3-fill" />
+                Supprimer Tout
+              </button>
+            )}
+            <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
+          </div>
         </div>
-
-        <div className={`${styles.InputGroup} ${styles.marginB1}`}>
+        <div className={styles.InputGroup}>
           <i className="bi bi-plus-circle" />
             <input
                 placeholder={`Nom du nouveau ${type === 'categories' ? 'catégorie' : 'entrepôt'}...`}
@@ -740,23 +795,22 @@ export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
                 placeholder={type === 'categories' ? 'Description...' : 'Localisation...'}
                 value={extra}
                 onChange={e => setExtra(e.target.value)}
-                style={{ marginLeft: '10px' }}
+                
             />
-            <button className={styles.inlineAddBtn} onClick={handleSave}>
-                {editingItem ? 'OK' : 'Ajouter'}
-            </button>
+              <button className={styles.inlineAddBtn} onClick={handleSave} disabled={saving}>
+                {saving ? <span className={layoutStyles.loadingDots}>Traitement</span>: (editingItem ? 'Modifier' : 'Ajouter')}
+              </button>
         </div>
-
         <div className={`${styles.list} ${styles.scrollList} ${styles.bgTransparent}`}>
           {items.map(item => (
             <div key={item.id_category || item.id_entrepot} className={styles.settingsItem}>
               <div className={styles.flexColumn}>
-                <span className={styles.settingsItemName}>{item.nom}</span>
+                <span className={styles.settingsItemName} title={item.nom}>{item.nom.length > 45 ? item.nom.substring(0, 45) + '...' : item.nom}</span>
                 <span className={styles.settingsItemSub}>{type === 'categories' ? item.description : item.location}</span>
               </div>
               <div className={styles.settingsItemActions}>
                 <button className={styles.ActionButton} onClick={() => handleEditClick(item)}><i className="bi bi-pencil" /></button>
-                <button className={styles.bulkDeleteBtn} onClick={() => handleDelete(item)}><i className="bi bi-trash" /></button>
+                <button className={styles.DeleteBtn} onClick={() => handleDelete(item)}><i className="bi bi-trash" /></button>
               </div>
             </div>
           ))}
@@ -766,9 +820,7 @@ export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
     </div>
   );
 };
-
 /* ================= IMPORT MODAL ================= */
-
 type ImportProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -776,7 +828,6 @@ type ImportProps = {
   onConfirmImport: (data: any[]) => void;
   generalError?: string | null;
 };
-
 export const ImportExcelWizard: React.FC<ImportProps> = ({
   isOpen,
   onClose,
@@ -792,26 +843,22 @@ export const ImportExcelWizard: React.FC<ImportProps> = ({
     entrepots: '',
     quantite_total: ''
   });
-
+  const [importLoading, setImportLoading] = useState(false);
   if (!isOpen || !data.length) return null;
-
   const headers = Object.keys(data[0]);
-
   const fields = [
     { id: 'code_barres', label: 'Code-barres', icon: 'bi-qr-code-scan', required: true },
-    { id: 'nom', label: 'Nom Article', icon: 'bi-tag', required: true },
+    { id: 'nom', label: 'Nom Article', icon: 'bi-tag', required: false },
     { id: 'prix', label: 'Prix', icon: 'bi-currency-dollar', required: false },
     { id: 'categories', label: 'Catégories', icon: 'bi-grid', required: false },
     { id: 'entrepots', label: 'Entrepôts', icon: 'bi-house-gear', required: false },
     { id: 'quantite_total', label: 'Quantité Totale', icon: 'bi-calculator', required: true },
   ];
-
-  const handleImport = () => {
-    if (!mapping.code_barres || !mapping.nom || !mapping.quantite_total) {
-      alert("Veuillez mapper les champs obligatoires (Code-barres, Nom, Quantité Totale)");
+  const handleImport = async () => {
+    if (!mapping.code_barres || !mapping.quantite_total) {
+      alert("Veuillez mapper les champs obligatoires (Code-barres, Quantité Totale)");
       return;
     }
-
     const transformed = data.map(row => ({
       code_barres: row[mapping.code_barres],
       nom: row[mapping.nom],
@@ -820,26 +867,26 @@ export const ImportExcelWizard: React.FC<ImportProps> = ({
       entrepots: mapping.entrepots ? row[mapping.entrepots] : null,
       quantite_total: row[mapping.quantite_total] ? Number(row[mapping.quantite_total]) : 0
     }));
-
-    onConfirmImport(transformed);
+    try {
+      setImportLoading(true);
+      await onConfirmImport(transformed);
+    } finally {
+      setImportLoading(false);
+    }
   };
-
   return (
     <div className={styles.modalOverlay}>
       <div className={`${styles.modalPanel} ${styles.modalContentExtraWide}`}>
-        <div className={styles.modalHeaderRow}>
+        <div className={styles.modalHeader}>
           <div className={styles.flex1}>
             <h3 className={styles.modalTitle}>Assistant d'Importation</h3>
-            <p className={styles.importWizardSub}>Associez les colonnes de votre fichier Excel</p>
+            <p className={styles.importWizardSub}>Associez les colonnes de votre fichier Excel / CSV</p>
           </div>
-          <button className={styles.dashboardMenuToggle} onClick={onClose}><i className="bi bi-x-lg" /></button>
+          <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
         <div className={styles.modalContent}>
-
         
-
-        {generalError && <div className={styles.authAlert} style={{ marginBottom: '1rem' }}>{generalError}</div>}
-
+        {generalError && <div className={styles.authAlert} >{generalError}</div>}
         <div className={styles.detailsForm}>
           {fields.map(field => (
             <div key={field.id} className={styles.importFieldRow}>
@@ -856,7 +903,6 @@ export const ImportExcelWizard: React.FC<ImportProps> = ({
             </div>
           ))}
         </div>
-
         <div className={styles.importInfoBox}>
           <i className={`bi bi-info-circle-fill ${styles.colorGold}`} />
           <p className={styles.importInfoText}>
@@ -864,18 +910,15 @@ export const ImportExcelWizard: React.FC<ImportProps> = ({
             Les catégories et entrepôts inexistants seront créés automatiquement.
           </p>
         </div>
-
-        <button className={`${styles.Submit} ${styles.marginT15} ${styles.flexRowCenter}`} onClick={handleImport}>
-          <i className="bi bi-check-all" /> Finaliser l'importation ({data.length} articles)
+        <button className={styles.Submit} onClick={handleImport} disabled={importLoading}>
+          <i className="bi bi-check-all" /> {importLoading ?<span className={layoutStyles.loadingDots}>Traitement</span> : `Finaliser l'importation (${data.length} articles)`}
         </button>
       </div>
       </div>
     </div>
   );
 };
-
 /* ================= BULK ACTIONS MODALS ================= */
-
 type BulkCategoryModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -883,7 +926,6 @@ type BulkCategoryModalProps = {
   categories: any[];
   onConfirm: (categoryIds: number[]) => void;
 };
-
 export const BulkAddCategoryModal: React.FC<BulkCategoryModalProps> = ({
   isOpen,
   onClose,
@@ -892,9 +934,8 @@ export const BulkAddCategoryModal: React.FC<BulkCategoryModalProps> = ({
   onConfirm
 }) => {
   const [selectedCats, setSelectedCats] = useState<number[]>([]);
-
+  const [loading, setLoading] = useState(false);
   if (!isOpen) return null;
-
   const toggle = (id: number) => {
     setSelectedCats(prev =>
       prev.includes(id)
@@ -902,17 +943,14 @@ export const BulkAddCategoryModal: React.FC<BulkCategoryModalProps> = ({
         : [...prev, id]
     );
   };
-
   return (
     <div className={styles.modalOverlay}>
       <div className={styles.modalPanel}>
-        <div className={styles.modalHeaderRow}>
+        <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle}>Ajouter à catégorie</h3>
-          <button className={styles.dashboardMenuToggle} onClick={onClose}><i className="bi bi-x-lg" /></button>
+          <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-
         <p className={styles.marginB1}>{selectedIds.length} articles sélectionnés</p>
-
         <div className={`${styles.list} ${styles.scrollList} ${styles.marginB1}`}>
           {categories.map((c: any) => (
             <label key={c.id_category} className={styles.checkboxLabel}>
@@ -926,22 +964,25 @@ export const BulkAddCategoryModal: React.FC<BulkCategoryModalProps> = ({
             </label>
           ))}
         </div>
-
        <button
   className={styles.Submit}
-  onClick={() => {
-    onConfirm(selectedCats);
-    onClose(); 
+  onClick={async () => {
+    setLoading(true);
+    try {
+      await onConfirm(selectedCats);
+    } finally {
+      setLoading(false);
+      onClose();
+    }
   }}
-  disabled={selectedCats.length === 0}
+  disabled={loading || selectedCats.length === 0}
 >
-  Confirmer
+  {loading ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Confirmer'}
 </button>
       </div>
     </div>
   );
 };
-
 type BulkEntrepotModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -949,7 +990,6 @@ type BulkEntrepotModalProps = {
   entrepots: any[];
   onConfirm: (data: any[]) => void;
 };
-
 export const BulkAddEntrepotModal: React.FC<BulkEntrepotModalProps> = ({
   isOpen,
   onClose,
@@ -958,9 +998,8 @@ export const BulkAddEntrepotModal: React.FC<BulkEntrepotModalProps> = ({
   onConfirm
 }) => {
   const [selected, setSelected] = useState<any[]>([]);
-
+  const [loading, setLoading] = useState(false);
   if (!isOpen) return null;
-
   const toggle = (id: number) => {
     const exists = selected.find(e => e.id_entrepot === id);
     if (exists) {
@@ -969,18 +1008,14 @@ export const BulkAddEntrepotModal: React.FC<BulkEntrepotModalProps> = ({
       setSelected([...selected, { id_entrepot: id, quantite: 0 }]);
     }
   };
-
-
   return (
     <div className={styles.modalOverlay}>
       <div className={styles.modalPanel}>
-        <div className={styles.modalHeaderRow}>
+        <div className={styles.modalHeader}>
           <h3 className={styles.modalTitle}>Ajouter à entrepôt</h3>
-          <button className={styles.dashboardMenuToggle} onClick={onClose}><i className="bi bi-x-lg" /></button>
+          <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-
         <p className={styles.marginB1}>{selectedIds.length} articles sélectionnés</p>
-
         <div className={`${styles.list} ${styles.scrollList} ${styles.marginB1}`}>
           {entrepots.map((e: any) => {
             const selectedEntry = selected.find(s => s.id_entrepot === e.id_entrepot);
@@ -999,17 +1034,131 @@ export const BulkAddEntrepotModal: React.FC<BulkEntrepotModalProps> = ({
             );
           })}
         </div>
-
         <button
   className={styles.Submit}
-  onClick={() => {
-    onConfirm(selected);
-    onClose(); 
+  onClick={async () => {
+    setLoading(true);
+    try {
+      await onConfirm(selected);
+    } finally {
+      setLoading(false);
+      onClose();
+    }
   }}
-  disabled={selected.length === 0}
+  disabled={loading || selected.length === 0}
 >
-  Confirmer
+  {loading ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Confirmer'}
 </button>
+      </div>
+    </div>
+  );
+};
+/* ================= EXPORT CHOICE MODAL ================= */
+type ExportChoiceModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  filteredArticlesCount: number;
+  onExportExcel: () => void;
+  onExportCSV: () => void;
+};
+export const ExportChoiceModal: React.FC<ExportChoiceModalProps> = ({
+  isOpen,
+  onClose,
+  filteredArticlesCount,
+  onExportExcel,
+  onExportCSV
+}) => {
+  if (!isOpen) return null;
+  const [exporting, setExporting] = useState({ excel: false, csv: false });
+  return (
+    <div className={styles.modalOverlay} onClick={onClose}>
+      <div className={styles.modalPanel} onClick={e => e.stopPropagation()} >
+        <div className={styles.modalHeader}>
+          <h3>
+            <i className="bi bi-upload" />Exporter le Stock
+          </h3>
+          <button className={styles.closeButton} onClick={onClose}>
+            <i className="bi bi-x-lg" />
+          </button>
+        </div>
+        <p className={styles.emptyMsg}>
+          Sélectionnez le format dans lequel vous souhaitez exporter le stock actif (<strong>{filteredArticlesCount}</strong> article{filteredArticlesCount > 1 ? 's' : ''}).
+        </p>
+        <div className={styles.ScrollList}>
+          <button 
+            className={styles.Submit} style={{ backgroundColor: '#107c10' }}
+            onClick={async () => {
+              setExporting(s => ({ ...s, excel: true }));
+              try {
+                await onExportExcel();
+              } finally {
+                setExporting(s => ({ ...s, excel: false }));
+                onClose();
+              }
+            }}
+            disabled={exporting.excel}
+         
+          >
+            <i className="bi bi-file-earmark-excel-fill"  />
+            {exporting.excel ? <span className={layoutStyles.loadingDots}>Traitement</span>: 'Exporter en Excel (.xlsx)'}
+          </button>
+          <button 
+            className={styles.Submit} 
+            onClick={async () => {
+              setExporting(s => ({ ...s, csv: true }));
+              try {
+                await onExportCSV();
+              } finally {
+                setExporting(s => ({ ...s, csv: false }));
+                onClose();
+              }
+            }}
+            disabled={exporting.csv}         
+           
+          >
+            <i className="bi bi-filetype-csv"  />
+            {exporting.csv ? <span className={layoutStyles.loadingDots}>Traitement</span>: 'Exporter en CSV (.csv)'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+/* ================= DELETE ARTICLE MODAL ================= */
+type DeleteArticleModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  articleName: string;
+  onDelete: () => void;
+  loading: boolean;
+  generalError?: string | null;
+};
+export const DeleteArticleModal: React.FC<DeleteArticleModalProps> = ({
+  isOpen,
+  onClose,
+  articleName,
+  onDelete,
+  loading,
+  generalError
+}) => {
+  if (!isOpen) return null;
+  return (
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalPanel}>
+        <div style={{ textAlign: 'right' }}>
+          <button className={styles.closeButton} onClick={onClose}>
+            <i className="bi bi-x-lg" />
+          </button>
+        </div>
+        <div >
+          {generalError && <div className={styles.authAlert} style={{ marginBottom: '1rem' }}>{generalError}</div>}
+          <p className={styles.deleteMessage}> <i className="bi bi-exclamation-triangle-fill" /> Etes-vous sure de vouloir supprimer l'article <strong>{articleName}</strong> ?</p>
+          <div >
+            <button className={styles.Submit} onClick={onDelete} disabled={loading}>
+              {loading ? 'Suppression...' : 'Supprimer'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

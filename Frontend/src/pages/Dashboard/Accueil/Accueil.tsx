@@ -79,13 +79,12 @@ const Accueil: React.FC = () => {
 
   const getStatusClass = (status: string) => {
     const s = status?.toLowerCase();
-    if (s === 'actif') return layoutStyles.statusGreen;
     if (s === 'inactif') return layoutStyles.statusRed;
-    if (s === 'en pause') return layoutStyles.statusYellow;
-    return layoutStyles.statusGray;
+    return layoutStyles.statusGreen;
   };
 
   const agents = data?.performance_agents || [];
+  const ecartsList = data?.ecarts_list || [];
 
   const sansecart = data?.analyse_ecarts?.sans_ecart || 0;
   const ecartPositif = data?.analyse_ecarts?.ecartPositif || 0;
@@ -138,11 +137,12 @@ const Accueil: React.FC = () => {
           </div>
           {data?.inventories_list?.map((inv: any) => (
             <div
+            title={inv.name}
               key={inv.id}
               className={`${styles.inventoryTab} ${selectedInventory === inv.id ? styles.activeTab : ''}`}
               onClick={() => setSelectedInventory(inv.id)}
             >
-              {inv.name}
+              {inv.name.length > 30 ? inv.name.substring(0, 30) + '...' : inv.name}
             </div>
           ))}
 
@@ -221,8 +221,9 @@ const Accueil: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 4: Performance Agents */}
-        <div className={layoutStyles.panel}>
+        {/* Row 4: Performance Agents & Ecarts */}
+        <div className={styles.panelGridRow}>
+          <div className={layoutStyles.panel}>
           <div className={layoutStyles.panelHeader}>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <h3 className={layoutStyles.panelTitle}>Performance Agents</h3>
@@ -235,7 +236,6 @@ const Accueil: React.FC = () => {
                 <tr>
                   <th>Agents</th>
                   <th>{selectedInventory === 'all' ? 'Inventaires assignés' : 'Dernier Scan'}</th>
-                  <th>Articles Scannés</th>
                   <th>Statut</th>
                 </tr>
               </thead>
@@ -247,15 +247,14 @@ const Accueil: React.FC = () => {
                     {agents.map((ag: any, i: number) => (
                       <tr key={i}>
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#1e293b' }}>
+                          <div className={styles.userCard}>
                             {ag.avatar ? (
                               <img
                                 src={ag.avatar.startsWith('http') ? ag.avatar : `http://localhost:8000${ag.avatar}`}
                                 alt="avatar"
-                                style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover' }}
                               />
                             ) : (
-                              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', color: '#1e293b' }}>
+                              <div >
                                 {getInitials(ag.nom)}
                               </div>
                             )}
@@ -275,8 +274,7 @@ const Accueil: React.FC = () => {
                             </span>
                           )}
                         </td>
-                        <td>{formatCompactNumber(ag.scans || 0)}</td>
-                        <td><span className={`${layoutStyles.statusBadge} ${getStatusClass(ag.status)}`}>{ag.status || 'Actif'}</span></td>
+                        <td><span className={`${layoutStyles.statusBadge} ${getStatusClass(ag.status)}`}>{ag.status=='Inactif' ? 'Inactif':'Actif'}</span></td>
                       </tr>
                     ))}
                     {agents.length === 0 && (
@@ -287,6 +285,54 @@ const Accueil: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Table Ecarts */}
+        <div className={layoutStyles.panel}>
+          <div className={layoutStyles.panelHeader}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <h3 className={layoutStyles.panelTitle}>Détails des Écarts</h3>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>Liste des articles présentant un écart</span>
+            </div>
+          </div>
+          <div className={layoutStyles.tableWrap}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Article</th>
+                  {selectedInventory === 'all' && <th>Inventaire</th>}
+                  <th>Écart</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={selectedInventory === 'all' ? 4 : 3} style={{ textAlign: 'center', color: '#64748b' }}><span className={layoutStyles.loadingDots}></span></td></tr>
+                ) : (
+                  <>
+                    {ecartsList.map((ecartItem: any, i: number) => (
+                      <tr key={i}>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 600, color: '#1e293b' }}>{ecartItem.article}</span>
+                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{ecartItem.code_barres}</span>
+                          </div>
+                        </td>
+                        {selectedInventory === 'all' && (
+                          <td>{ecartItem.inventaire}</td>
+                        )}
+                        <td style={{ color: ecartItem.ecart_positif ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{ecartItem.ecart_positif ? `+${ecartItem.ecart_positif}` : `-${ecartItem.ecart_negatif}`}</td>
+                      </tr>
+                    ))}
+                    {ecartsList.length === 0 && (
+                      <tr><td colSpan={selectedInventory === 'all' ? 4 : 3} style={{ textAlign: 'center', color: '#64748b' }}>Aucun écart détecté</td></tr>
+                    )}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         </div>
 
       </div>

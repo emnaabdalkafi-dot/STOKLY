@@ -18,6 +18,54 @@ class ArticleRepository
         return Article::with(['categories', 'entrepots', 'lignesInventaire.inventaire'])->findOrFail($id);
     }
 
+public function findConnuByCodeBarres($code)
+{
+    return Article::where('code_barres', $code)
+        ->where('etat', 'connu')
+        ->first();
+}
+
+public function createConnu(array $data)
+{
+    return Article::create([
+        'code_barres' => $data['code_barres'],
+        'nom' => $data['nom'] ?? null,
+        'prix' => $data['prix'] ?? null,
+        'etat' => 'connu',
+        'quantite_total' => 0
+    ]);
+}
+public function updateBasicInfo($article, $data)
+{
+    if (!empty($data['nom'])) {
+        $article->nom = $data['nom'];
+    }
+
+    if (!empty($data['prix'])) {
+        $article->prix = $data['prix'];
+    }
+
+    $article->save();
+
+    return $article;
+}
+public function resolveCategories($categories)
+{
+    $names = is_array($categories)
+        ? $categories
+        : explode(',', $categories);
+
+    $ids = [];
+
+    foreach ($names as $name) {
+        $cat = $this->findOrCreateCategory(trim($name));
+        $ids[] = $cat->id_category;
+    }
+
+    return $ids;
+}
+
+
     public function create(array $data)
     {
         return Article::create($data);

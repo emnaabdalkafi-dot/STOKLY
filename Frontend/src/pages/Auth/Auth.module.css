@@ -1,3 +1,30 @@
+/*loading */
+.loading::after {
+  content: ' .';
+  animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+
+  0%,
+  20% {
+    content: '.';
+  }
+
+  40% {
+    content: '..';
+  }
+
+  60% {
+    content: '...';
+  }
+
+  80%,
+  100% {
+    content: '..';
+  }
+}
+/*page*/
 .authPage {
   width: 100%;
   height: 100vh;
@@ -9,7 +36,7 @@
   overflow: hidden;
 }
 
-.authCard {
+.authContainer {
   position: relative;
   top: 1rem;
   width: 95%;
@@ -19,7 +46,7 @@
   gap: 1rem;
   grid-template-columns: 1fr 1fr;
 }
-
+/*form panel*/
 .authFormPanel {
   padding: 2rem;
   height: 85vh;
@@ -41,6 +68,9 @@
   background-repeat: no-repeat;
   background-size: cover;
 }
+/*form details*/
+
+/*brand*/
 .authBrand {
   display: flex;
   flex-direction: column;
@@ -59,26 +89,22 @@
   width: 75px;
   height: auto;
 }
-
 .authBrand p {
-  color: #6b7b8b;
-  font-size: 0.95rem;
-  margin: 0;
+  color:#8a949b;
+  font-size: 0.8rem;
 }
-
-.authFormPanel h1 {
-  margin: 0;
-  font-size: 2rem;
-  color: #102a43;
-}
-
-.authSubtitle {
-  color: #6b7b8b;
-  margin: 0;
-}
-
+/*form */
 .authForm {
   display: grid;
+}
+/*input */
+.authForm label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #D99A37;
+  text-align: left;
 }
 
 .authInputGroup {
@@ -95,12 +121,7 @@
   gap: 0.75rem;
 }
 
-.authInputGroup:hover {
-  border-color: #D99A37;
-  box-shadow: 0 1px 0 1px rgba(217, 155, 55, 0.206);
-}
-
-.authInputIcon {
+.authInputGroup i{
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,12 +139,6 @@
   color: #102a439b;
   width: 100%;
 }
-
-.authInputGroup input:focus {
-  outline: none;
-  box-shadow: none;
-}
-
 .authPasswordToggle {
   margin-left: auto;
   background: none;
@@ -136,21 +151,16 @@
   color: #102a43;
 }
 
-.authPasswordToggle:focus,
-.authSocialButton:focus,
-.authLink:focus {
+.authInputGroup:hover {
+  border-color: #D99A37;
+  box-shadow: 0 1px 0 1px rgba(217, 155, 55, 0.206);
+}
+
+.authInputGroup input:focus {
   outline: none;
   box-shadow: none;
 }
-
-.authRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
+/*links*/
 .authLink,
 .authLinkMuted {
   color: #D99A37;
@@ -161,6 +171,9 @@
   font-weight: 700;
   text-decoration: underline;
   background: none;
+  border: none;
+  cursor: pointer;
+  text-align: center;
 }
 
 .authLink:hover,
@@ -168,22 +181,7 @@
   color: #a66c2b;
   border: none;
 }
-
-.authGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.authForm label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.8rem;
-  color: #D99A37;
-  text-align: left;
-}
-
+/*error */
 .fieldError {
   color: #bf1650;
   font-size: 0.7rem;
@@ -198,7 +196,17 @@
   padding: 0.75rem;
   background-color: #ffe8ec;
 }
-
+/*success */
+.messageSuccess {
+  color: #166534;
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+  background: #dcfce7;
+  border: 1px solid #166534;
+  border-radius: 5px;
+  padding: 0.75rem;
+}
+/*submit */
 .authSubmit {
   width: 100%;
   background: #102a43;
@@ -216,37 +224,36 @@
   transform: translateY(2px);
   box-shadow: 0 1px 1px rgba(16, 42, 67, 0.16);
 }
-
-
-
-.authOu {
+/*focus */
+.authPasswordToggle:focus,
+.authLink:focus,
+.authSubmit:focus {
+  outline: none;
+  box-shadow: none;
+}
+/*reset password  */
+.resetForm {
+  height: 85vh;
+  overflow: hidden;
+  margin: 1rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  margin: 1rem 0;
+  align-items: center;
+  gap: 1.5rem;
+  background: #3d4da60d;
+  border: 1px solid #0000001e;
+  border-radius: 15px;
 }
+.resetForm form{
+  width: 400px;
+ gap: 1rem;}
 
-
-
-.authFooter {
-  color: #627d98;
-  font-size: 0.95rem;
-}
-
-.authFooter a {
-  color: #102a43;
-  text-decoration: none;
-  font-weight: 700;
-}
-
+/*media queries*/
 @media (max-width: 640px) {
-  .authCard {
+  .authContainer {
     grid-template-columns: 1fr;
-    position: relative;
-    height: auto;
-    min-height: 100vh;
   }
 
   .authImagePanel {
@@ -260,9 +267,7 @@
     transform: translateX(-50%);
     transition: transform 1s ease;
     z-index: 1;
-    padding: 2rem;
-    border-radius: 15px;
-    background: linear-gradient(135deg, #e5f4fe 0%, #fdf5eb 100%);
+    background: linear-gradient(135deg, #EFF9FF 0%, #FFFBF6 100%);
   }
 
   .authFormPanel.active {
@@ -277,5 +282,8 @@
     opacity: 1;
     pointer-events: none;
     z-index: 1;
+  }
+  .resetForm form{
+    max-width: 200px;
   }
 }

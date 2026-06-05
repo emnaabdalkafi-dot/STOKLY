@@ -17,13 +17,24 @@ class AuthController extends Controller
 
     public function register(Request $request)
     {
-        try {
+    try {
+            // Vérifier si un admin existe déjà
+            $adminExists = \App\Models\User::where('role', 'admin')->exists();
+            if ($adminExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Un administrateur existe déjà. L\'inscription est désactivée.',
+                ], 403);
+            }
+
             $validated = $request->validate([
-                'nom' => 'required|string|max:255',
-                'prenom' => 'required|string|max:255',
-                'email' => 'required|email|unique:utilisateurs,email',
+                'nom'      => 'required|string|max:255',
+                'prenom'   => 'required|string|max:255',
+                'email'    => 'required|email|unique:utilisateurs,email',
                 'password' => 'required|string|min:6',
-                'tel' => 'nullable|string|max:20',
+                'tel'      => 'nullable|digits:8',
+            ], [
+                'tel.digits' => 'Le numéro de téléphone doit contenir exactement 8 chiffres.',
             ]);
 
             $result = $this->authService->register($validated);

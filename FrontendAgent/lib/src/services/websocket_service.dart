@@ -139,6 +139,20 @@ class WebSocketService {
         }
       });
 
+      channel.bind('notification.created').listen((event) {
+        if (event.data != null) {
+          final data = json.decode(event.data!);
+          final notif = data['notification'] ?? data;
+          final title = notif['type'] == 'nouvelle note' ? 'Nouvelle Note' : 'Notification';
+          NotificationService().showNotification(
+            id: (notif['id_notification'] ?? DateTime.now().millisecond) as int,
+            title: title,
+            body: notif['contenu'] ?? '',
+            payload: 'notification_${notif['id_inventaire']}',
+          );
+        }
+      });
+
       channel.subscribe();
       _channels[channelName] = channel;
       debugPrint('📡 Subscribed to $channelName');

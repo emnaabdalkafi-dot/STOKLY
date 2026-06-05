@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../providers/user_provider.dart';
 import '../../constants/app_colors.dart';
 import '../../services/inventory_service.dart';
+import '../../widgets/custom_app_bar.dart';
+
 class AddNotePage extends StatefulWidget {
   final int inventoryId;
   final String inventoryTitle;
@@ -62,23 +64,8 @@ class _AddNotePageState extends State<AddNotePage> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text('Communication', style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold)),
-        leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
-            ),
-            child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.primary, size: 15),
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+      appBar: const CustomAppBar(
+        title: 'Ajouter une Note',
       ),
       body: Container(
         width: double.infinity,
@@ -134,15 +121,10 @@ class _AddNotePageState extends State<AddNotePage> {
                                         padding: const EdgeInsets.all(8),
                                         decoration: BoxDecoration(
                                           color: AppColors.accent.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(10),
+                                          borderRadius: BorderRadius.circular(5),
                                         ),
-                                        child: const Icon(Icons.edit_note_rounded, color: AppColors.accent, size: 24),
                                       ),
-                                      const SizedBox(width: 12),
-                                      const Text(
-                                        'Ajouter une Note',
-                                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-                                      ),
+                                      
                                     ],
                                   ),
                                   const SizedBox(height: 24),
@@ -161,7 +143,6 @@ class _AddNotePageState extends State<AddNotePage> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Text('Contenu de la note', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary)),
                                         TextField(
                                           controller: _noteController,
                                           maxLines: 5,

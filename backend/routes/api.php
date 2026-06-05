@@ -74,11 +74,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/entrepots', [StockController::class, 'createEntrepot']);
         Route::put('/entrepots/{id}', [StockController::class, 'updateEntrepot']);
         Route::get('/entrepots/{id}/check', [StockController::class, 'checkEntrepot']);
+        Route::delete('/entrepots/delete-all', [StockController::class, 'deleteAllEntrepots']);
         Route::delete('/entrepots/{id}', [StockController::class, 'deleteEntrepot']);
 
         Route::get('/categories', [StockController::class, 'getCategories']);
         Route::post('/categories', [StockController::class, 'createCategory']);
         Route::put('/categories/{id}', [StockController::class, 'updateCategory']);
+        Route::delete('/categories/delete-all', [StockController::class, 'deleteAllCategories']);
         Route::delete('/categories/{id}', [StockController::class, 'deleteCategory']);
     });
 
@@ -114,6 +116,4 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/corrections', [\App\Http\Controllers\CorrectionController::class, 'store']);
     Route::put('/corrections/{id}/validate', [\App\Http\Controllers\CorrectionController::class, 'validateCorrection']);
 
-    // Rapports / Historique
-    Route::get('/rapports', [InventaireController::class, 'getRapports']);
 });

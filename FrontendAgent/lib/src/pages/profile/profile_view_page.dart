@@ -16,123 +16,111 @@ class ProfileViewPage extends StatelessWidget {
     final user = Provider.of<UserProvider>(context).user;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundStart,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            // HEADER
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Profil',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    width: 30,
-                    height: 30,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            // AVATAR
-            _buildAvatarWidget(user),
-
-            const SizedBox(height: 15),
-
-            Text(
-              user != null
-                  ? "${user['nom']} ${user['prenom']}"
-                  : "Utilisateur",
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-
-            Text(
-              user?['email'] ?? "",
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-
-            const SizedBox(height: 30),
-
-            // EDIT BUTTON
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ProfilePage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.edit, color: Colors.white),
-                label: const Text(
-                  'Modifier Profil',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 15),
-
-            // LOGOUT
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  await authService.logout();
-
-                  Provider.of<UserProvider>(context, listen: false)
-                      .clearUser();
-
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(
-                      builder: (_) => const LoginPage(),
-                    ),
-                        (route) => false,
-                  );
-                },
-                icon: const Icon(Icons.logout, color: AppColors.error),
-                label: const Text(
-                  'Déconnexion',
-                  style: TextStyle(color: AppColors.error),
-                ),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.error),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-
-              ),
-            ),
-          ],
-        ),
+  body: Container(
+    width: double.infinity,
+    height: double.infinity,
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          AppColors.backgroundStart,
+          AppColors.backgroundEnd,
+        ],
       ),
-    );
+    ),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        children: [
+
+              // AVATAR
+              _buildAvatarWidget(user),
+
+              const SizedBox(height: 15),
+
+              Text(
+                user != null
+                    ? "${user['nom']} ${user['prenom']}"
+                    : "Utilisateur",
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+
+              Text(
+                user?['email'] ?? "",
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+
+              const SizedBox(height: 30),
+
+              // EDIT BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ProfilePage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.edit, color: Colors.white),
+                  label: const Text(
+                    'Modifier Profil',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 15),
+
+              // LOGOUT
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    await authService.logout();
+
+                    Provider.of<UserProvider>(context, listen: false)
+                        .clearUser();
+
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                        builder: (_) => const LoginPage(),
+                      ),
+                          (route) => false,
+                    );
+                  },
+                  icon: const Icon(Icons.logout, color: AppColors.error),
+                  label: const Text(
+                    'Déconnexion',
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.error),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+  ),
+      );
   }
 
   Widget _buildAvatarWidget(Map<String, dynamic>? user) {

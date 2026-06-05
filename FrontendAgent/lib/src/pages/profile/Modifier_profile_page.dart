@@ -5,6 +5,8 @@ import '../../constants/app_colors.dart';
 import '../../constants/api_constants.dart';
 import '../../providers/user_provider.dart';
 import '../../services/user_service.dart';
+import '../../widgets/custom_app_bar.dart';
+
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -180,48 +182,28 @@ class _ProfilePageState extends State<ProfilePage> {
     final user = Provider.of<UserProvider>(context).user;
 
     return Scaffold(
-      backgroundColor: AppColors.backgroundStart,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
-              child: Column(
-                children: [
-                  // HEADER
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      extendBodyBehindAppBar: true,
+      appBar: const CustomAppBar(
+        title: 'Modifier Profil',
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.backgroundStart, AppColors.backgroundEnd],
+          ),
+        ),
+        child: SafeArea(
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
                     children: [
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.arrow_back, color: AppColors.primary),
-                            onPressed: () {
-                              Navigator.pop(context);
-                            },
-                          ),
-                          const SizedBox(width: 10),
-                          const Text(
-                            'Modifier Profil',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(5),
-                        child: Image.asset(
-                          'assets/images/logo.png',
-                          width: 30,
-                          height: 30,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 30),
+                      const SizedBox(height: 10),
 
                   // IMAGE
                   GestureDetector(
@@ -290,6 +272,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
+        ),
+      ),
     );
   }
 

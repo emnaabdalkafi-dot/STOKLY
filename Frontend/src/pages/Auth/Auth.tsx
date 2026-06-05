@@ -109,9 +109,8 @@ const Auth: React.FC = () => {
 
   return (
     <div className={styles.authPage}>
-      <div className={styles.authCard}>
-        <div className={`${styles.authFormPanel} ${isLogin ? styles.active : styles.inactive}`} >
-     
+      <div className={styles.authContainer}>
+             <div className={`${styles.authFormPanel} ${isLogin ? styles.active : styles.inactive}`} >
             <form onSubmit={handleLoginSubmit} className={styles.authForm}>
               <div className={styles.authBrand}>
                 <img src={logoImage} alt="STOKLY logo" className={styles.authLogoImage} />
@@ -121,7 +120,7 @@ const Auth: React.FC = () => {
               <div>
                 <label>Email</label>
                 <div className={styles.authInputGroup}>
-                  <i className={`bi bi-envelope ${styles.authInputIcon}`} aria-hidden="true" />
+                  <i className={`bi bi-envelope `} aria-hidden="true" />
                   <input
                     type="email"
                     value={loginEmail}
@@ -134,12 +133,12 @@ const Auth: React.FC = () => {
               <div>
                 <label>Mot de passe</label>
                 <div className={styles.authInputGroup}>
-                  <i className={`bi bi-lock ${styles.authInputIcon}`} aria-hidden="true" />
+                  <i className={`bi bi-lock `} aria-hidden="true" />
                   <input
                     type={showLoginPassword ? 'text' : 'password'}
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder='******'
+                    placeholder='Mot de passe'
                     required
                   />
                   <button
@@ -152,14 +151,12 @@ const Auth: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <div className={styles.authRow}>
+              <div >
                 <Link to="/forgot-password" className={styles.authLinkMuted}>Mot de passe oublié ?</Link>
               </div>
-            <div className={styles.authOu}>
               <button type="button" onClick={toggleForm} className={styles.authLink}>
                 Vous n'avez pas de compte ?
               </button>
-            </div>
             <button type="submit" className={styles.authSubmit}>
               Se connecter
             </button>
@@ -172,11 +169,11 @@ const Auth: React.FC = () => {
                 <img src={logoText} alt="STOKLY" className={styles.authLogoText} />
               </div>
               {registerMessage && <div className={styles.authAlert}>{registerMessage}</div>}
-              <div className={styles.authGrid}>
+              <div >
                 <div>
                   <label>Nom</label>
                   <div className={styles.authInputGroup}>
-                    <i className={`bi bi-person ${styles.authInputIcon}`} aria-hidden="true" />
+                    <i className={`bi bi-person `} aria-hidden="true" />
                     <input
                       type="text"
                       value={nom}
@@ -190,7 +187,7 @@ const Auth: React.FC = () => {
                 <div>
                   <label>Prénom</label>
                   <div className={styles.authInputGroup}>
-                    <i className={`bi bi-person ${styles.authInputIcon}`} aria-hidden="true" />
+                    <i className={`bi bi-person `} aria-hidden="true" />
                     <input
                       type="text"
                       value={prenom}
@@ -205,12 +202,14 @@ const Auth: React.FC = () => {
               <div>
                 <label>Téléphone</label>
                 <div className={styles.authInputGroup}>
-                  <i className={`bi bi-telephone ${styles.authInputIcon}`} aria-hidden="true" />
+                  <i className={`bi bi-telephone `} aria-hidden="true" />
                   <input
                     type="tel"
+                    maxLength={8}
+                    minLength={8}
                     value={tel}
                     onChange={(e) => setTel(e.target.value)}
-                    placeholder='+21612345678'
+                    placeholder='12 345 678'
                   />
                 </div>
                 {registerErrors.tel && <span className={styles.fieldError}>{registerErrors.tel}</span>}
@@ -218,7 +217,7 @@ const Auth: React.FC = () => {
               <div>
                 <label>Email</label>
                 <div className={styles.authInputGroup}>
-                  <i className={`bi bi-envelope ${styles.authInputIcon}`} aria-hidden="true" />
+                  <i className={`bi bi-envelope `} aria-hidden="true" />
                   <input
                     type="email"
                     value={registerEmail}
@@ -232,12 +231,12 @@ const Auth: React.FC = () => {
               <div>
                 <label>Mot de passe</label>
                 <div className={styles.authInputGroup}>
-                  <i className={`bi bi-lock ${styles.authInputIcon}`} aria-hidden="true" />
+                  <i className={`bi bi-lock `} aria-hidden="true" />
                   <input
                     type={showRegisterPassword ? 'text' : 'password'}
                     value={registerPassword}
                     onChange={(e) => setRegisterPassword(e.target.value)}
-                    placeholder='******'
+                    placeholder='Mot de passe'
                     required
                   />
                   <button
@@ -254,12 +253,12 @@ const Auth: React.FC = () => {
               <div>
                 <label>Confirmer mot de passe</label>
                 <div className={styles.authInputGroup}>
-                  <i className={`bi bi-lock ${styles.authInputIcon}`} aria-hidden="true" />
+                  <i className={`bi bi-lock `} aria-hidden="true" />
                   <input
                     type={showRegisterPassword ? 'text' : 'password'}
                     value={passwordConfirm}
                     onChange={(e) => setPasswordConfirm(e.target.value)}
-                    placeholder='******'
+                    placeholder='Confirmer le mot de passe'
                     required
                   />
                   <button
@@ -273,15 +272,12 @@ const Auth: React.FC = () => {
                 </div>
                 {registerErrors.passwordConfirm && <span className={styles.fieldError}>{registerErrors.passwordConfirm}</span>}
               </div>
-          <div className={styles.authOu}>
             <button type="button" onClick={toggleForm} className={styles.authLink}>
                 Vous avez déjà un compte ?
             </button>
-          </div>
             <button type="submit" className={styles.authSubmit}>
               S'inscrire
             </button>
-              
             </form>
         </div>
               </div>

@@ -5,14 +5,19 @@
   height: 100vh;
   background: linear-gradient(135deg, #EFF9FF 0%, #FFFBF6 100%);
 
-
 }
 
 .mainContent {
   display: flex;
  width: 100%;
+ margin: 0;
   flex-direction: column;
   transition: margin-left 300ms ease;
+}
+@media (max-width: 800px) {
+  .mainContent{
+   width:85% ;
+  }
 }
 
 .pageContent {
@@ -186,7 +191,12 @@
   background: #0f172a;
   color: #f1f5f9;
 }
-
+.loadingMessage {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #64748b;
+  text-align: center;
+}
 .dashboardLoading {
   display: flex;
   justify-content: center;
@@ -316,6 +326,7 @@
   padding: 15px;
   display: flex;
   flex-direction: column;
+  max-height: 250px;
 }
 
 :global(.dark-mode) .panel {
@@ -597,14 +608,14 @@
   border-radius: 3px;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 800px) {
 
   .dashboardNavbarActions span {
     display: none;
   }
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 1100px) {
   .dashboardMenuToggle {
     display: none;
   }
@@ -628,22 +639,6 @@
   background: #111827;
   color: #e2e8f0;
 }
-
-:global(.dark-mode) .dashboardButtonPrimary {
-  background: #fbbf24;
-  color: #0f172a;
-}
-
-:global(.dark-mode) .dashboardButtonSecondary {
-  background: #1f2937;
-  color: #e2e8f0;
-}
-
-
-
-
-
-
 
 
 
@@ -748,7 +743,7 @@
   color: white;
   font-size: 0.65rem;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px ;
   border-radius: 10px;
   min-width: 18px;
   height: 18px;
@@ -780,6 +775,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  cursor: pointer;
 }
 
 
@@ -811,8 +807,22 @@
   display: flex;
   gap: 10px;
   align-items: flex-start;
+  border-bottom: 2px solid #f1f5f9;
 }
-
+.alertCritique {
+  font-size: 0.75rem;
+  color: #aa0909;
+background-color: #fee2e2;
+padding: 7px;
+  font-weight: 600;
+  margin: 0;
+  height: 30px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.alertCritique p {
+  margin: 0;
+}
 .activityAvatar {
   width: 24px;
   height: 24px;
@@ -831,7 +841,7 @@
   color: #cbd5e1;
 }
 
-@media (max-width: 1040px) {
+@media (max-width: 1100px) {
 
   .openRight {
     position: fixed;
@@ -891,6 +901,12 @@
   justify-content: center;
   z-index: 1000;
 }
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
 
 .modalPanel {
   background: linear-gradient(135deg, #EFF9FF 0%, #FFFBF6 100%);
@@ -922,30 +938,27 @@
 }
 
 .closeButton {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 24px;
-  height: 24px;
+  height: 10px;
+  width: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 10;
-  font-size: 0.8rem;
+  font-size: 1rem;
   border: none;
   background: transparent;
   color: #102a43;
-  border-radius: 4px;
 }
 
 .modalTitle {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
-  margin-bottom: 1rem;
+margin: 0;
+padding: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
 }
 
 .detailsForm {
@@ -957,9 +970,9 @@
 
 .detailsContainer {
   background: rgba(255, 255, 255, 0.5);
-  border-radius: 10px;
+  border-radius: 5px;
   padding: 0.5rem;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(67, 75, 112, 0.269);
 }
 
 :global(.dark-mode) .detailsContainer {
@@ -980,8 +993,9 @@
 
 .displayItem {
   padding: 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border: 1px solid #d3d9df;
   transition: background 0.2s;
+ cursor: pointer;
 }
 
 :global(.dark-mode) .displayItem {
@@ -1021,6 +1035,7 @@
 .notifTitleStrong {
   font-weight: 600;
   color: #1e293b;
+  font-size: 0.8rem;
 }
 
 :global(.dark-mode) .notifTitleStrong {
@@ -1055,6 +1070,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  color: #009539;
 }
 
 :global(.dark-mode) .activityAvatarSmall {
@@ -1067,7 +1083,15 @@
 
 .alertDangerItem {
   border-left: 4px solid #ef4444;
-  background-color: #fff5f5;
+  
+    font-size: 0.75rem;
+  color: #aa0909;
+background-color: #fee2e2;
+padding: 7px;
+  font-weight: 600;
+  margin: 0;
+  border-radius: 5px;
+  cursor: pointer;
   margin-bottom: 8px;
 }
 
@@ -1151,7 +1175,30 @@
 .alertBox a:hover {
   text-decoration: underline;
 }
-
+.toastBox {
+ padding: 15px;
+  border-radius: 8px;     
+  position: fixed;
+  bottom: 20px;
+  right: 50px; 
+  left: auto;
+  animation: slideInRight 0.5s ease-out forwards;
+  z-index: 9999;
+  cursor: pointer;
+  width: 300px;
+  max-height: 100px;
+  }
+ .toastTitle {
+   font-size: 0.8rem;
+   font-weight: 700;
+   margin: 0;
+  margin-bottom: 5px;
+}
+.toastDesc {
+  font-size: 0.7rem;
+  margin: 0;
+  color: #475569;
+}
 .alertClose {
   position: absolute;
   top: 8px;
@@ -1187,8 +1234,112 @@
   color: #16a34a !important;
 }
 
-@keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+:global(.dark-mode) .Content {
+  border-color: #334155;
+  background: #1e293b;
+}
+
+:global(.dark-mode) .notificationButton {
+  color: #e2e8f0;
+}
+
+:global(.dark-mode) .badge {
+  background-color: #dc2626;
+}
+
+:global(.dark-mode) .alertCritique {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+:global(.dark-mode) .countBadge {
+  background: #334155;
+  color: #f8fafc;
+}
+
+:global(.dark-mode) .statusGreen {
+  background: rgba(22, 163, 74, 0.15);
+  color: #86efac;
+}
+
+:global(.dark-mode) .statusRed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+:global(.dark-mode) .statusYellow {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+}
+
+:global(.dark-mode) .statusGray {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+:global(.dark-mode) .displayItem {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:global(.dark-mode) .displayItem:hover {
+  background: #273449;
+}
+
+:global(.dark-mode) .detailsContainer {
+  color: #f1f5f9;
+}
+
+:global(.dark-mode) .closeButton {
+  color: #f1f5f9;
+}
+
+:global(.dark-mode) .toastDesc {
+  color: #cbd5e1;
+}
+
+:global(.dark-mode) .toastTitle {
+  color: #f8fafc;
+}
+
+:global(.dark-mode) .alertDangerItem {
+  color: #fca5a5;
+}
+
+:global(.dark-mode) .alertWarningItem {
+  background: rgba(245, 158, 11, 0.1);
+  border-left-color: #f59e0b;
+  color: #fcd34d;
+}
+
+:global(.dark-mode) .dashboardContainer {
+  scrollbar-color: #475569 #1e293b;
+}
+
+:global(.dark-mode) .cardHeader,
+:global(.dark-mode) .cardSubValue,
+:global(.dark-mode) .loadingMessage,
+:global(.dark-mode) .notifTime,
+:global(.dark-mode) .notifTimeSmall {
+  color: #94a3b8;
+}
+
+:global(.dark-mode) .notifTitleStrong {
+  color: #f8fafc;
+}
+
+:global(.dark-mode) .notifDesc {
+  color: #cbd5e1;
+}
+
+:global(.dark-mode) .dashboardNavbar .dashboardButtonPrimary {
+  background: #D99A37;
+  color: #111827;
+}
+
+:global(.dark-mode) .dashboardNavbar .dashboardButtonSecondary {
+  background: #334155;
+  color: #f8fafc;
 }
 

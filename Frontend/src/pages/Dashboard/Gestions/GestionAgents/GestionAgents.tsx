@@ -1,15 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import api from '../../../services/api';
-import { useAuth } from '../../../context/AuthContext';
-import echo from '../../../services/echo';
-import styles from './Gestions.module.css';
-import layoutStyles from '../../../components/layout/layout.module.css';
-import AgentForm from './AgentForm';
-import { formatCompactNumber } from '../../../utils/formatters';
+import api from '../../../../services/api';
+import echo from '../../../../services/echo';
+import styles from '../Gestions.module.css';
+import layoutStyles from '../../../../components/layout/layout.module.css';
+import AgentForm from './AgentModals';
+import { formatCompactNumber } from '../../../../utils/formatters';
 
 const Agents: React.FC = () => {
-  const { user } = useAuth();
-
   const [agents, setAgents] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -25,7 +22,7 @@ const Agents: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // modal
-  const [modalType, setModalType] = useState<'add' | 'edit' | 'delete' | 'details' | null>(null);
+  const [modalType, setModalType] = useState<'add' | 'delete' | 'details' | null>(null);
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
 
 
@@ -84,64 +81,64 @@ const Agents: React.FC = () => {
   // WebSocket listener — runs only once on mount
   useEffect(() => {
     const channel = echo.private('admin');
-    
+
     channel.listen('.scan.enregistre', () => {
       // Instead of full fetch, we just refresh stats as scans affect counts
       fetchStats();
       // Optionally update agent's specific scan count if it was tracked in 'agents' list
     });
-    
+
     channel.listen('.inventaire.status.updated', (event: any) => {
       fetchStats();
       setAgents(prevAgents => prevAgents.map(agent => {
         // Look for this agent in the event's affectations
         const updatedAffectation = event.affectations?.find((aff: any) => aff.id_agent === agent.id);
-        
+
         if (updatedAffectation) {
           // If the agent is part of this inventory, update their affectations list
           const existingAffIndex = agent.affectations?.findIndex((a: any) => a.id_inventaire === event.id_inventaire);
-          
+
           let newAffectations = [...(agent.affectations || [])];
           if (existingAffIndex !== undefined && existingAffIndex >= 0) {
-             // Update existing affectation status
-             newAffectations[existingAffIndex] = {
-               ...newAffectations[existingAffIndex],
-               statut_participation: updatedAffectation.statut_participation,
-               inventaire: {
-                 ...newAffectations[existingAffIndex].inventaire,
-                 statut: event.statut
-               }
-             };
+            // Update existing affectation status
+            newAffectations[existingAffIndex] = {
+              ...newAffectations[existingAffIndex],
+              statut_participation: updatedAffectation.statut_participation,
+              inventaire: {
+                ...newAffectations[existingAffIndex].inventaire,
+                statut: event.statut
+              }
+            };
           } else {
-             // Add new affectation if not present
-             newAffectations.push({
-               id_inventaire: event.id_inventaire,
-               id_agent: agent.id,
-               statut_participation: updatedAffectation.statut_participation,
-               inventaire: {
-                 id_inventaire: event.id_inventaire,
-                 titre: event.titre,
-                 statut: event.statut,
-                 site: event.site
-               }
-             });
+            // Add new affectation if not present
+            newAffectations.push({
+              id_inventaire: event.id_inventaire,
+              id_agent: agent.id,
+              statut_participation: updatedAffectation.statut_participation,
+              inventaire: {
+                id_inventaire: event.id_inventaire,
+                titre: event.titre,
+                statut: event.statut,
+                site: event.site
+              }
+            });
           }
           return { ...agent, affectations: newAffectations };
         }
-        
+
         // Also update any existing affectations if the inventory status changed but participation didn't
         const hasInventory = agent.affectations?.some((a: any) => a.id_inventaire === event.id_inventaire);
         if (hasInventory) {
           return {
             ...agent,
-            affectations: agent.affectations.map((a: any) => 
-              a.id_inventaire === event.id_inventaire 
+            affectations: agent.affectations.map((a: any) =>
+              a.id_inventaire === event.id_inventaire
                 ? { ...a, inventaire: { ...a.inventaire, statut: event.statut } }
                 : a
             )
           };
         }
-        
+
         return agent;
       }));
     });
@@ -216,21 +213,18 @@ const Agents: React.FC = () => {
   const initials = (agent: any) =>
     `${agent.nom?.charAt(0) ?? ''}${agent.prenom?.charAt(0) ?? ''}`.toUpperCase();
 
-
-  if (!user) return <div className={styles.dashboardLoading}>Chargement...</div>;
-
   return (
     <main className={styles.dashboardMain}>
       {modalType && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalPanel}>
-            <div style={{ textAlign: 'right' }}>
-              <button className={styles.dashboardMenuToggle} onClick={() => { setModalType(null); setSelectedAgent(null); }}>
+            <div >
+              <button className={styles.closeButton} onClick={() => { setModalType(null); setSelectedAgent(null); }}>
                 <i className="bi bi-x-lg" />
               </button>
             </div>
 
-            {(modalType === 'add' || modalType === 'edit' || modalType === 'details') && (
+            {(modalType === 'add' || modalType === 'details') && (
               <AgentForm
                 mode={modalType}
                 agent={selectedAgent}
@@ -240,14 +234,14 @@ const Agents: React.FC = () => {
             )}
 
             {modalType === 'delete' && (
-              <div className={styles.textAlignCenter}>
-                {generalError && <div className={styles.authAlert} style={{ marginBottom: '1rem' }}>{generalError}</div>}
-                <p>Etes-vous sure de vouloir supprimer <strong>{selectedAgent?.nom} {selectedAgent?.prenom}</strong> ?</p>
-                <div className={styles.modalFooterCenter}>
+              <div className={styles.modalContent}>
+                {generalError && <div className={styles.Alert} >{generalError}</div>}
+                <p className={styles.deleteMessage}>                <i className="bi bi-exclamation-triangle-fill" /> Etes-vous sure de vouloir supprimer <strong>{selectedAgent?.nom} {selectedAgent?.prenom}</strong> ?</p>
+                <div >
                   <button className={styles.Submit} onClick={() => {
                     setGeneralError(null);
-                      api.delete(`/agents/${selectedAgent.id}`)
-                        .then(() => { fetchAgents(true); fetchStats(); setModalType(null); })
+                    api.delete(`/agents/${selectedAgent.id}`)
+                      .then(() => { fetchAgents(true); fetchStats(); setModalType(null); })
                       .catch(err => setGeneralError(err.response?.data?.message || "Erreur de suppression"));
                   }}>Supprimer</button>
                 </div>
@@ -288,15 +282,15 @@ const Agents: React.FC = () => {
         </div>
       </div>
 
-      <section className={`${styles.dashboardPanel} ${styles.dashboardPanelLarge}`}>
+      <section className={styles.dashboardPanel}>
         <div className={styles.dashboardPanelHeader}>
           <h3>Liste des agents ({formatCompactNumber(filteredAgents.length)})</h3>
           <div className={styles.dashboardPanelActions}>
-            <div className={styles.searchAgents}>
+            <div className={styles.search}>
               <i className="bi bi-search" />
-              <input type="text" placeholder="Nom / Email" value={search} onChange={e => setSearch(e.target.value)} className={styles.searchInput} />
+              <input type="text" placeholder="Nom / Email" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
-            <button className={styles.addButton} onClick={() => { setSelectedAgent(null); setModalType('add'); }}>
+            <button className={styles.ActionButton} onClick={() => { setSelectedAgent(null); setModalType('add'); }}>
               <i className="bi bi-plus-lg" /> Ajouter agent
             </button>
           </div>
@@ -309,18 +303,19 @@ const Agents: React.FC = () => {
             <option value="inactif">Inactif</option>
           </select>
           <select className={styles.filterSelect} value={invFilter} onChange={e => setInvFilter(e.target.value)}>
-            <option value="">Tous les inventaires</option>
+            <option value="">Sélectionner un inventaire</option>
             {inventaires.map(inv => <option key={inv.id_inventaire} value={inv.id_inventaire}>{inv.site || `Inventaire #${inv.id_inventaire}`}</option>)}
           </select>
         </div>
 
         {selectedIds.length > 0 && (
           <div className={styles.bulkActionBar}>
-            <p className={styles.bulkActionText}>{selectedIds.length} agent(s) sélectionné(s)</p>
+            <p > <i className="bi bi-check2-circle" /> {selectedIds.length} agent{selectedIds.length > 1 ? 's' : ''} sélectionné{selectedIds.length > 1 ? 's' : ''}</p>
             <div>
-              <button className={styles.bulkDeleteBtn} onClick={bulkDeleteAgents}><i className="bi bi-trash" /> Supprimer la sélection</button>
+              <button className={styles.DeleteBtn} onClick={bulkDeleteAgents}><i className="bi bi-trash" /> Supprimer la sélection</button>
               <button className={styles.ActionButton} onClick={() => setSelectedIds([])}>Annuler</button>
-            </div></div>
+            </div>
+          </div>
         )}
 
         <div className={styles.dashboardTableWrap}>
@@ -337,7 +332,15 @@ const Agents: React.FC = () => {
               </tr>
             </thead>
             {loading ? (
-              <tbody><tr><td colSpan={7} className={styles.tableEmptyMsg}><span className={styles.loadingDots}></span></td></tr></tbody>
+              <tbody>
+                <tr >
+                  {Array.from({ length: 7 }).map((_, index) => (
+                    <td key={index} >
+                      <span className={layoutStyles.loadingDots}></span>
+                    </td>
+                  ))}
+                </tr>
+                </tbody>
             ) : filteredAgents.length === 0 ? (
               <tbody><tr><td colSpan={7} className={styles.tableEmptyMsg}>Aucun agent trouvé</td></tr></tbody>
             ) : (
@@ -349,18 +352,17 @@ const Agents: React.FC = () => {
                       <div className={styles.dashboardUserCard}>
                         <div className={styles.dashboardUserAvatar}>
                           {agent.avatar ? (
-                            <img 
-                              src={agent.avatar.startsWith('http') ? agent.avatar : `http://localhost:8000${agent.avatar}`} 
-                              alt="Avatar" 
-                              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} 
+                            <img
+                              src={agent.avatar.startsWith('http') ? agent.avatar : `http://localhost:8000${agent.avatar}`}
+                              alt="Avatar"
                             />
                           ) : (
                             initials(agent)
                           )}
                         </div>
-                        <div className={styles.dashboardUserInfo}>
+                        <div >
                           <p className={styles.dashboardUserName}>{agent.nom} {agent.prenom}</p>
-                          <p className={styles.dashboardUserEmail} title={agent.email}>{agent.email.length > 15 ? agent.email.substring(0, 15) + '...' : agent.email}</p>
+                          <p  title={agent.email}>{agent.email.length > 15 ? agent.email.substring(0, 15) + '...' : agent.email}</p>
                         </div>
                       </div>
                     </td>
@@ -369,7 +371,7 @@ const Agents: React.FC = () => {
                     <td>
                       {agent.statut === 'actif' ? (
                         <span className={styles.activeInvTag}>
-                          <i className="bi bi-broadcast" style={{ marginRight: '5px' }} />
+                          <i className="bi bi-broadcast" />
                           {agent.inventaire_actif_titre || 'En cours...'}
                         </span>
                       ) : '—'}
@@ -377,7 +379,7 @@ const Agents: React.FC = () => {
                     <td><span className={statusClass(agent.statut ?? 'inactif')}>{agent.statut ?? 'inactif'}</span></td>
                     <td>
                       <button className={styles.ActionButton} onClick={() => { setSelectedAgent(agent); setModalType('details'); }}>Détails</button>
-                      <button className={`${styles.ActionButton} ${styles.deleteButton}`} onClick={() => { setSelectedAgent(agent); setModalType('delete'); }}>Supprimer</button>
+                      <button className={styles.DeleteBtn} onClick={() => { setSelectedAgent(agent); setModalType('delete'); }}>Supprimer</button>
                     </td>
                   </tr>
                 ))}
