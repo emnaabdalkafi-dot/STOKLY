@@ -37,6 +37,7 @@ class ArticleController extends Controller
             'categories' => 'array',
             'entrepots' => 'array',
         ]);
+
         $exists = \App\Models\Article::where('code_barres', $data['code_barres'])->where('etat', 'connu')->exists();
         if ($exists) {
             return response()->json(['errors' => ['code_barres' => ['Un article avec ce code-barres existe déjà.']]], 422);

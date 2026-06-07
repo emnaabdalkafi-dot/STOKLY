@@ -234,6 +234,58 @@ class InventaireService
         return ['success' => true, 'found' => true, 'article' => $article, 'ligne' => $ligne];
     }
 
+    public function addKnownArticleToInventory($inventaireId, $barcode, $user, $quantite = 1, $idEntrepot = null)
+    {
+        return DB::transaction(function () use ($inventaireId, $barcode, $user, $quantite, $idEntrepot) {
+            $inventaire = Inventaire::findOrFail($inventaireId);
+            
+            if ($inventaire->statut === 'cloture') {
+                throw new \Exception('Inventaire déjà cloturé.', 403);
+            }
+
+            $article = Article::where('code_barres', $barcode)->first();
+            if (!$article) {
+                throw new \Exception('Article introuvable.', 404);
+            }
+
+            $targetEntrepotId = $idEntrepot ?? $inventaire->id_entrepot;
+
+            $ligne = $this->repository->getLigneByArticle($inventaireId, $article->id_article, $targetEntrepotId);
+            if ($ligne) {
+                throw new \Exception('Cet article fait déjà partie de l\'inventaire pour cet entrepôt.', 409);
+            }
+
+            if ($targetEntrepotId) {
+                $existsInEntrepot = $article->entrepots()->where('entrepots.id_entrepot', $targetEntrepotId)->exists();
+                if (!$existsInEntrepot) {
+                    $article->entrepots()->attach($targetEntrepotId, ['quantite' => 0, 'propose_par' => $user->id]);
+                }
+            }
+
+            $ligne = $this->repository->createLigne([
+                'id_inventaire' => $inventaireId,
+                'id_article' => $article->id_article,
+                'id_entrepot' => $targetEntrepotId,
+                'quantite_theorique' => 0,
+                'quantite_comptee' => $quantite,
+                'ecart' => $quantite
+            ]);
+
+            $this->repository->createScan([
+                'id_ligne' => $ligne->id_ligne,
+                'id_agent' => $user->id,
+                'quantite' => $quantite,
+            ]);
+
+            broadcast(new \App\Events\ScanEnregistre($inventaireId, $article, $user->id, $ligne->quantite_comptee, $ligne->ecart, $targetEntrepotId))->toOthers();
+
+            return [
+                'article' => $article,
+                'id_ligne' => $ligne->id_ligne,
+            ];
+        });
+    }
+
     public function terminateInventaire($id, array $data)
     {
         $inventaire = Inventaire::with(['lignes.article', 'affectations.agent'])->findOrFail($id);

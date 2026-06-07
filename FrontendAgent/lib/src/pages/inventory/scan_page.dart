@@ -197,6 +197,9 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
               // Propose adding the article
               _showUnknownArticleDialog(barcode.trim(), quantite);
             }
+          } else if (!isUnknown && canAdd) {
+            final articleNom = result['article'] != null ? result['article']['nom'] : 'inconnu';
+            _showKnownArticleDialog(barcode.trim(), quantite, articleNom);
           } else {
             _handleOfflineScan(barcode.trim(), quantite: quantite);
           }
@@ -461,7 +464,153 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     );
   }
 
- void _showProposeArticleForm(String barcode, int quantite) {
+  void _showKnownArticleDialog(String barcode, int quantite, String nom) {
+    _scannerController.stop();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+        title: Column(
+          children: [
+            const SizedBox(height: 10),
+            const Text(
+              'Article hors inventaire',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.primary, fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Article connu mais non inclus dans l\'inventaire.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.backgroundStart,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.primary),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    nom,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMain,
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    barcode,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Voulez-vous l\'ajouter ?',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+          ],
+        ),
+        actions: [
+          Row(
+            children: [
+              Expanded(
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _scannerController.start();
+                  },
+                  child: const Text('IGNORER', style: TextStyle(color: AppColors.textMuted)),
+                ),
+              ),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    await _addKnownArticle(barcode, quantite);
+                  },
+                  label: const Text('AJOUTER'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addKnownArticle(String barcode, int quantite) async {
+    setState(() => _isScanning = true);
+    try {
+      int? selectedEntrepotId = widget.selectedEntrepotId ?? widget.inventoryData?['id_entrepot'];
+      if (selectedEntrepotId == null && widget.inventoryData?['type_source'] == 'tous' && _entrepots.isNotEmpty) {
+        selectedEntrepotId = _entrepots.first['id_entrepot'];
+      }
+
+      final result = await _inventoryService.addKnownArticleToInventory(
+        widget.inventoryId,
+        barcode,
+        quantite: quantite,
+        idEntrepot: selectedEntrepotId,
+      );
+
+      if (mounted) {
+        if (result['success'] == true) {
+          setState(() {
+            _snackMessage = '$barcode ajouté';
+            _lastScannedArticleName = result['data']?['article']?['nom'];
+            _lastBarcode = barcode;
+            _lastScanTime = DateTime.now();
+            _isQuantityMode = false;
+            _quantityController.text = '1';
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('L\'article a été ajouté à l\'inventaire avec succès.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+          );
+        } else {
+          _showErrorDialog(result['message'] ?? 'Erreur lors de l\'ajout');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        _showErrorDialog('Erreur de connexion');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isScanning = false);
+        _scannerController.start();
+      }
+    }
+  }
+
+  void _showProposeArticleForm(String barcode, int quantite) {
   final nomController = TextEditingController();
   bool isSubmitting = false;
   int? selectedEntrepotId = widget.selectedEntrepotId ?? widget.inventoryData?['id_entrepot'];

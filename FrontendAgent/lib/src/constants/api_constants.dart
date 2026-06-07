@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String serverUrl = "http://192.168.1.181:8000";
+  static const String serverUrl = "https://stokly-production.up.railway.app";
   static const String baseUrl   = "$serverUrl/api";
 
   // Laravel Reverb (WebSocket) config

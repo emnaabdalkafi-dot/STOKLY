@@ -132,6 +132,29 @@ class InventaireController extends Controller
         return response()->json($result, $result['success'] ? 200 : 404);
     }
 
+    public function addKnownArticleToInventory(Request $request, $id)
+    {
+        $request->validate([
+            'code_barres' => 'required|string',
+            'quantite' => 'nullable|integer|min:1',
+            'id_entrepot' => 'nullable|integer|exists:entrepots,id_entrepot'
+        ]);
+
+        $quantite = $request->input('quantite', 1);
+        $idEntrepot = $request->input('id_entrepot');
+
+        try {
+            $result = $this->service->addKnownArticleToInventory($id, $request->code_barres, $request->user(), $quantite, $idEntrepot);
+            return response()->json(['success' => true, 'data' => $result, 'message' => 'Article ajouté à l\'inventaire avec succès.'], 201);
+        } catch (\Exception $e) {
+            $code = $e->getCode();
+            if (!is_numeric($code) || $code < 100 || $code >= 600) {
+                $code = 400;
+            }
+            return response()->json(['success' => false, 'message' => $e->getMessage()], $code);
+        }
+    }
+
     public function stopInventaire(Request $request, $id)
     {
         $this->service->stopInventaire($id, $request->user());

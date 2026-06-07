@@ -97,6 +97,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/{id}/assign', [App\Http\Controllers\InventaireController::class, 'assignAgent']);
         Route::post('/{id}/start', [App\Http\Controllers\InventaireController::class, 'startInventaire']);
         Route::post('/{id}/scan', [App\Http\Controllers\InventaireController::class, 'scanBarcode']);
+        Route::post('/{id}/add-known-article', [App\Http\Controllers\InventaireController::class, 'addKnownArticleToInventory']);
         Route::post('/{id}/stop', [App\Http\Controllers\InventaireController::class, 'stopInventaire']);
         Route::get('/{id}/summary', [App\Http\Controllers\InventaireController::class, 'getSummary']);
         Route::post('/{id}/terminate', [App\Http\Controllers\InventaireController::class, 'terminate']);

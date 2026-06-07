@@ -137,6 +137,36 @@ class InventoryService {
     }
   }
 
+  /// POST /inventaires/{id}/add-known-article
+  Future<Map<String, dynamic>> addKnownArticleToInventory(int inventaireId, String codeBarres, {int quantite = 1, int? idEntrepot}) async {
+    try {
+      final token = await _getToken();
+      final response = await http.post(
+        Uri.parse('$baseUrl/inventaires/$inventaireId/add-known-article'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'code_barres': codeBarres,
+          'quantite': quantite,
+          if (idEntrepot != null) 'id_entrepot': idEntrepot,
+        }),
+      );
+
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 201) {
+        return {'success': true, ...data};
+      } else {
+        return {'success': false, ...data};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'La connexion Internet est interrompue. Veuillez vérifier votre réseau.'};
+    }
+  }
+
   /// GET /inventaires/{id}/notes
   Future<Map<String, dynamic>> getNotes(int inventoryId, {String? filter, String? search}) async {
     try {
