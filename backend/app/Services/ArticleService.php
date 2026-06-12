@@ -257,21 +257,21 @@ if (!empty($data['entrepots'])){
         foreach ($grouped as $data) {
 
             // 🔥 ONLY CONNU ARTICLES
-            $article = $this->articleRepository
+            $article = $this->repository
                 ->findConnuByCodeBarres($data['code_barres']);
 
             if (!$article) {
-                $article = $this->articleRepository->createConnu($data);
+                $article = $this->repository->createConnu($data);
             } else {
-                $this->articleRepository->updateBasicInfo($article, $data);
+                $this->repository->updateBasicInfo($article, $data);
             }
 
             // Categories
             if (!empty($data['categories'])) {
-                $categoryIds = $this->articleRepository
+                $categoryIds = $this->repository
                     ->resolveCategories($data['categories']);
 
-                $this->articleRepository->syncCategories($article, $categoryIds);
+                $this->repository->syncCategories($article, $categoryIds);
             }
 
             // Entrepots
@@ -279,7 +279,7 @@ if (!empty($data['entrepots'])){
             $total = 0;
 
             foreach ($data['entrepots'] as $name => $qty) {
-                $entrepot = $this->articleRepository->findOrCreateEntrepot($name);
+                $entrepot = $this->repository->findOrCreateEntrepot($name);
 
                 $syncData[$entrepot->id_entrepot] = [
                     'quantite' => $qty
@@ -288,7 +288,7 @@ if (!empty($data['entrepots'])){
                 $total += $qty;
             }
 
-            $this->articleRepository->syncEntrepots($article, $syncData);
+            $this->repository->syncEntrepots($article, $syncData);
 
             if (!empty($data['entrepots'])) {
                 $article->quantite_total = $total;
