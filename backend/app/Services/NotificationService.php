@@ -17,7 +17,6 @@ class NotificationService
     {
         $notifications = $this->repository->getForUser($user);
 
-        // Map structured columns for frontend compatibility
         $notifications->transform(function ($notif) {
             $notif->contenu_decoded = [
                 'message' => $notif->contenu,

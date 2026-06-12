@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../../../../services/api';
+import api, { BACKEND_URL } from '../../../../services/api';
 import styles from '../Gestions.module.css';
 import layoutStyles from '../../../../components/layout/layout.module.css';
 interface Props {
@@ -96,7 +96,7 @@ const AgentForm: React.FC<Props> = ({ agent, mode, onClose, onSuccess }) => {
             <div className={styles.agentAvatar} >
               {agent.avatar ? (
                 <img 
-                  src={agent.avatar.startsWith('http') ? agent.avatar : `http://localhost:8000${agent.avatar}`} 
+                  src={agent.avatar.startsWith('http') ? agent.avatar : `${BACKEND_URL}${agent.avatar}`} 
                   alt="Avatar" 
                 />
               ) : (
@@ -164,6 +164,7 @@ const AgentForm: React.FC<Props> = ({ agent, mode, onClose, onSuccess }) => {
                     <input type="tel" maxLength={8}
                     minLength={8} name="tel" value={form.tel} onChange={handleChange} />
                   </div>
+                  {errors.tel && <span className={styles.fieldError}>{errors.tel}</span>}
                 </div>
               </div>
             )}

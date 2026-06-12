@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import api from '../../../services/api';
+import api, { BACKEND_URL } from '../../../services/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import echo from '../../../services/echo';
@@ -250,7 +250,7 @@ const Accueil: React.FC = () => {
                           <div className={styles.userCard}>
                             {ag.avatar ? (
                               <img
-                                src={ag.avatar.startsWith('http') ? ag.avatar : `http://localhost:8000${ag.avatar}`}
+                                src={ag.avatar.startsWith('http') ? ag.avatar : `${BACKEND_URL}${ag.avatar}`}
                                 alt="avatar"
                               />
                             ) : (

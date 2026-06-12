@@ -67,6 +67,7 @@
             <thead>
                 <tr>
                     <th>Article</th>
+                    <th>Entrepôt</th>
                     <th>Prix</th>
                     <th>Théorique</th>
                     <th>Compté</th>
@@ -80,6 +81,7 @@
                         <strong>{{ $ligne['nom'] }}</strong><br>
                         <small>{{ $ligne['code_barres'] }}</small>
                     </td>
+                    <td>{{ $ligne['entrepot'] ?? 'Tous' }}</td>
                     <td>{{ number_format($ligne['prix'], 2) }}</td>
                     <td>{{ $ligne['theorique'] }}</td>
                     <td>{{ $ligne['comptee'] }}</td>

@@ -105,10 +105,11 @@ class InventaireController extends Controller
         $inventaire = Inventaire::findOrFail($id);
 
         if (in_array($inventaire->type_source, ['tous', 'article'])) {
+            $hasEntrepots = \App\Models\Entrepot::count() > 0;
             $request->validate([
                 'code_barres' => 'required|string',
                 'quantite' => 'nullable|integer|min:1',
-                'id_entrepot' => 'required|integer|exists:entrepots,id_entrepot'
+                'id_entrepot' => $hasEntrepots ? 'required|integer|exists:entrepots,id_entrepot' : 'nullable'
             ], [
                 'id_entrepot.required' => 'Le choix de l\'entrepôt est obligatoire pour ce type d\'inventaire.'
             ]);
@@ -171,40 +172,33 @@ class InventaireController extends Controller
         $inventaire->load(['lignes.article', 'lignes.entrepot', 'affectations.agent']);
         $scansByArticle = $this->repository->getScansByArticle($id)->groupBy('id_article');
 
-        // Group lines by id_article to merge duplicate rows for different warehouses
-        $groupedLignes = $inventaire->lignes->groupBy('id_article')->map(function($group) use ($scansByArticle) {
-            $first = $group->first();
-            $article = $first->article;
-            $idArticle = $first->id_article;
+        // Map lines directly without grouping by id_article
+        $groupedLignes = $inventaire->lignes->map(function($ligne) use ($scansByArticle) {
+            $article = $ligne->article;
+            $idArticle = $ligne->id_article;
             
             $articleScans = $scansByArticle->get($idArticle) ?? collect();
+            // Filter scans if they belong to this entrepot if possible, but currently we just show all agents for this article
             $agentsContrib = $articleScans
                 ->map(fn($s) => trim((($s->agent->nom ?? '') . ' ' . ($s->agent->prenom ?? '')) . ($s->agent->email ? ' <' . $s->agent->email . '>' : '')))
                 ->unique()
                 ->filter()
                 ->implode(', ');
 
-            $totalTheorique = $group->sum('quantite_theorique');
-            $totalComptee = $group->sum('quantite_comptee');
-
-            // Determine a representative entrepot for the grouped article (if all lines share the same entrepot)
-            $entrepot = null;
-            $entrepotNames = $group->map(fn($g) => $g->entrepot?->nom)->filter()->unique()->values();
-            if ($entrepotNames->count() === 1) {
-                $entrepot = ['nom' => $entrepotNames->first()];
-            }
+            $totalTheorique = $ligne->quantite_theorique ?? 0;
+            $totalComptee = $ligne->quantite_comptee ?? 0;
 
             return [
-                'id_ligne' => $first->id_ligne,
+                'id_ligne' => $ligne->id_ligne,
                 'id_article' => $idArticle,
                 'nom' => $article->nom ?? '...',
                 'code_barres' => $article->code_barres ?? '...',
                 'prix' => $article->prix ?? 0,
                 'quantite_theorique' => $totalTheorique,
                 'quantite_comptee' => $totalComptee,
-                'ecart' => $totalComptee - $totalTheorique,
+                'ecart' => $ligne->ecart ?? ($totalComptee - $totalTheorique),
                 'agents_contrib' => $agentsContrib,
-                'entrepot' => $entrepot
+                'entrepot' => ['nom' => $ligne->entrepot->nom ?? 'Tous']
             ];
         });
 

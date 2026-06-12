@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://192.168.1.181:8000/api',
+  baseURL: 'https://stokly-production.up.railway.app/api',
 });
 
 api.interceptors.request.use((config) => {
@@ -28,4 +28,5 @@ api.interceptors.response.use(
 );
 
 export default api;
-export const WS_HOST = '192.168.1.181';
+export const WS_HOST = 'stokly-production.up.railway.app';
+export const BACKEND_URL = 'https://stokly-production.up.railway.app';

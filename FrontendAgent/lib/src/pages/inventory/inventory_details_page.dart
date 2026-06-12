@@ -58,13 +58,22 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
 
   bool _hasUnreadNotes = false;
   List<Map<String, dynamic>> _uniqueEntrepots = [];
+  List<dynamic> _globalEntrepots = [];
   int? _selectedEntrepotId;
 
   @override
   void initState() {
     super.initState();
     _fetchDetails();
+    _fetchGlobalEntrepots();
     _connectWebSocket();
+  }
+
+  Future<void> _fetchGlobalEntrepots() async {
+    final res = await _inventoryService.getEntrepots();
+    if (mounted && res['success'] == true) {
+      setState(() => _globalEntrepots = res['data'] ?? []);
+    }
   }
 
   Future<void> _connectWebSocket() async {
@@ -215,9 +224,19 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
   }
 
   Future<void> _showWarehouseSelection() async {
+    // If no entrepots exist globally in DB, skip warehouse selection entirely
+    if (_globalEntrepots.isEmpty) {
+      _selectedEntrepotId = null;
+      _handleStart();
+      return;
+    }
+
     if (_uniqueEntrepots.length <= 1) {
       if (_uniqueEntrepots.length == 1) {
         _selectedEntrepotId = _uniqueEntrepots.first['id_entrepot'];
+      } else if (_globalEntrepots.length == 1) {
+        // Only one entrepot in DB → auto-select it
+        _selectedEntrepotId = _globalEntrepots.first['id_entrepot'];
       }
       _handleStart();
       return;

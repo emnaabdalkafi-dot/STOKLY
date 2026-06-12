@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../Gestions.module.css';
 import { inventaireService } from '../../../../services/inventaireService';
-import api from '../../../../services/api';
+import api, { BACKEND_URL } from '../../../../services/api';
 import echo from '../../../../services/echo';
 import layoutStyles from '../../../../components/layout/layout.module.css';
 import { formatCompactNumber, formatCurrency, getCurrencySymbol } from '../../../../utils/formatters';
@@ -31,6 +31,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
   });
   const [fieldErrors, setFieldErrors] = useState<any>({});
   const [generalError, setGeneralError] = useState<string | null>(null);
+  const [terminateSuccess, setTerminateSuccess] = useState<{ show: boolean, reportUrl: string | null }>({ show: false, reportUrl: null });
 
   // Data for options
   const [agentsList, setAgentsList] = useState<any[]>([]);
@@ -46,6 +47,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
   const [corrections, setCorrections] = useState<any[]>([]);
   const [loadingCorrections, setLoadingCorrections] = useState(false);
   const [correctionSearch, setCorrectionSearch] = useState('');
+  const [noteSearch, setNoteSearch] = useState('');
 
   useEffect(() => {
     if (modalType === 'add' || modalType === 'details' || modalType === 'addNote') {
@@ -57,6 +59,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     }
 
     if (modalType === 'notes' && selectedItem) {
+      setNoteSearch('');
       fetchNotes(selectedItem.id_inventaire);
     }
 
@@ -133,6 +136,12 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
       channel.stopListening('.note.deleted', onNoteChange);
     };
   }, [modalType, selectedItem]);
+
+  useEffect(() => {
+    if (!open) {
+      setTerminateSuccess({ show: false, reportUrl: null });
+    }
+  }, [open]);
 
   const fetchSummary = async () => {
     setLoadingSummary(true);
@@ -259,11 +268,8 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
 
       const res = await api.post(`/inventaires/${selectedItem.id_inventaire}/terminate`, payload);
       if (res.data.success) {
-        if (res.data.report_url) {
-          window.open(`http://localhost:8000${res.data.report_url}`, '_blank');
-        }
+        setTerminateSuccess({ show: true, reportUrl: res.data.report_url });
         onSuccess();
-        onClose();
       }
     } catch (err: any) {
       setGeneralError(err.response?.data?.message || "Erreur lors de la clôture.");
@@ -346,7 +352,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     }
   };
 
- 
+
 
   const [editSections, setEditSections] = useState({
     info: false,
@@ -361,7 +367,6 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
     return `${styles.statusBadge}`;
   };
   if (!modalType) return null;
-
   return (
     <div className={styles.modalOverlay}>
       <div className={`${styles.modalPanel} ${modalType === 'details' ? styles.modalContentExtraWide : ''}`}>
@@ -386,6 +391,8 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
 
           {modalType === 'add' && (
             <div className={styles.detailsForm}>
+              <span className={`${styles.importInfoBox } ${styles.importInfoText}`}style={{padding:"2px"}} >             <i className="bi bi-info-circle-fill" />
+                Les quantités théoriques sont enregistrées au moment de la création de l’inventaire. Les articles ajoutés ultérieurement ne seront pas inclus dans cet inventaire.</span>
               {generalError && <div className={styles.fieldError} >{generalError}</div>}
 
               <div className={styles.detailsContainer} >
@@ -410,10 +417,16 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                         <i className="bi bi-signpost" />
                         <input
                           type="text"
+                          list="site-options"
                           value={formData.site}
                           placeholder="Site"
                           onChange={e => setFormData({ ...formData, site: e.target.value })}
                         />
+                        <datalist id="site-options">
+                          {Array.from(new Set(entrepotsList.map(e => e.location).filter(Boolean))).map((loc: any, idx) => (
+                            <option key={idx} value={loc} />
+                          ))}
+                        </datalist>
                       </div>
                     </label>
                     {fieldErrors.site && <span className={styles.fieldError}>{fieldErrors.site[0]}</span>}
@@ -509,7 +522,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
                   <div className={styles.marginT1}>
                     <label>Sélectionner des articles</label>
                     <div className={`${styles.list} ${styles.scrollList}`} >
-                      {loadingOptions ? <span className={`${layoutStyles.loadingDots} ${styles.tableEmptyMsg}`}>Chargement</span> : articlesList.length === 0 ? <p>Aucun article trouvé.</p> : null}
+                      {loadingOptions ? <span className={`${layoutStyles.loadingDots} ${styles.tableEmptyMsg}`}>Chargement</span> : articlesList.length === 0 ? <p className={styles.tableEmptyMsg}>Aucun article trouvé.</p> : null}
                       {articlesList.map(article => (
                         <label key={article.id_article} className={styles.scrollListItem}>
                           <input
@@ -530,7 +543,7 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
               <div className={styles.detailsContainer}>
                 <h4 className={styles.sectionTitle}>3. Affectation Agents</h4>
                 <div className={`${styles.list} ${styles.scrollList} ${styles.marginB1}`} >
-                  {loadingOptions ? <span className={`${layoutStyles.loadingDots} ${styles.tableEmptyMsg}`}>Chargement</span> : agentsList.length === 0 ? <p>Aucun agent trouvé.</p> : null}
+                  {loadingOptions ? <span className={`${layoutStyles.loadingDots} ${styles.tableEmptyMsg}`}>Chargement</span> : agentsList.length === 0 ? <p className={styles.tableEmptyMsg}>Aucun agent trouvé.</p> : null}
                   {agentsList.map(agent => (
                     <label key={agent.id} className={styles.scrollListItem}>
                       <input
@@ -764,479 +777,520 @@ const InventaireModals: React.FC<InventaireModalsProps> = ({ modalType, selected
             </div>
           )}
 
-        
+
           {(modalType === 'terminate' || modalType === 'rapport' || modalType === 'historique') && (
             <div className={styles.detailsForm}>
-
               {generalError && <div className={styles.authAlert} style={{ marginBottom: '1rem' }}>{generalError}</div>}
-
               {loadingSummary ? (
                 <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
               ) : summary ? (
                 <>
-                  <div className={styles.detailsContainer}>
-                    <h4 className={styles.sectionTitle}>Résumé Global : {summary.titre}</h4>
-                    <div className={styles.displayList}>
-                      <div className={styles.displayItem}><strong>Articles sans écart :</strong> {formatCompactNumber(summary.sans_ecart_count)}</div>
-                      <div className={styles.displayItem}>
-                        <strong className={styles.positiveEcart}>Écarts Positifs (+) :</strong> {formatCompactNumber(summary.ecart_positif_count)}
-                        <span className={styles.ecartPositive}>({formatCurrency(summary.ecart_positif_price || 0, currency, true)})</span>
-                      </div>
-                      <div className={styles.displayItem}>
-                        <strong className={styles.negativeEcart}>Écarts Négatifs (-) :</strong> {formatCompactNumber(summary.ecart_negatif_count)}
-                        <span className={styles.ecartNegative}>({formatCurrency(summary.ecart_negatif_price || 0, currency, true)})</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={styles.detailsContainer}>
-                    <h4 className={styles.sectionTitle}>Détail des lignes :</h4>
-                    <div className={layoutStyles.tableWrap} style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                      <table className={styles.dashboardTable}>
-                        <thead>
-                          <tr>
-                            <th>Article</th>
-                            <th>Théorique</th>
-                            <th>Comptée</th>
-                            <th>Écart</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {summary.lignes?.map((l: any) => (
-                            <tr key={l.id_ligne}>
-                              <td>
-                                <div style={{ fontWeight: '500' }}>{l.nom}</div>
-                                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{l.code_barres}</div>
-                              </td>
-                              <td>{l.quantite_theorique}</td>
-                              <td>{l.quantite_comptee ?? 0}</td>
-                              <td style={{ color: l.ecart > 0 ? '#22c55e' : l.ecart < 0 ? '#ef4444' : 'inherit' }}>
-                                {l.ecart > 0 ? '+' : ''}{l.ecart}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  <div className={styles.detailsContainer}>
-                    <h4 >Agents participants :</h4>
-                    <div className={styles.displayList} >
-                      {summary.agent_names?.map((name: string, idx: number) => (
-                        <span key={idx} className={styles.displayItem} >
-                          {name}
-                        </span>
-                      ))}
-                    </div>
-
-                    <h4 className={styles.sectionTitle} >Détails de quentité comptée par agent :</h4>
-                    <div className={styles.List} style={{ maxHeight: '200px' }}>
-                      {summary.lignes?.filter((l: any) => l.agents_contrib).map((l: any) => {
-                        const agentsArr = (l.agents_contrib || '')
-                          .toString()
-                          .split(',')
-                          .map((s: string) => s.trim())
-                          .filter(Boolean)
-                          .map((s: string) => {
-                            const m = s.match(/^(.*?)(?:\s*<([^>]+)>)?$/);
-                            return { name: m ? m[1].trim() : s, email: (m && m[2]) ? m[2].trim() : '' };
-                          });
-                        const code = l.code_barres || l.code || l.article?.code_barres || l.ligne?.article?.code_barres || '';
-                        const articleName = l.nom || l.article?.nom || l.ligne?.article?.nom || 'Article';
-                        const entrepotName = l.entrepot?.nom || l.entrepot_nom || l.nom_entrepot || '';
-                        return (
-                          <div key={l.id_ligne} className={styles.Item}>
-
-                            <span
-                              title={`${articleName} (${entrepotName}) : ${l.quantite_comptee}`}
-                            >
-                              <strong>[{code}]</strong>{' '}
-
-                              {articleName.length > 20
-                                ? `${articleName.substring(0, 20)}...`
-                                : articleName}
-
-                              {entrepotName && (
-                                <>
-                                  {' '}
-                                  <span className={styles.entrepotLabel}>
-                                    (
-                                    {entrepotName.length > 25
-                                      ? `${entrepotName.substring(0, 25)}...`
-                                      : entrepotName}
-                                    )
-                                  </span>
-                                </>
-                              )}
-
-                              {' '}:
-                              <span className={styles.quantiteValue}>
-                                {formatCompactNumber(l.quantite_comptee ?? 0)}
-                              </span>
-                            </span>
-                            <strong title={agentsArr.map((a: any) => a.email).join(', ')}>
-                              {agentsArr.map((a: any, idx: number) => (
-                                <span key={idx}>
-                                  {a.name}
-                                  
-                                </span>
-                              ))}
-                            </strong>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <h4 className={styles.sectionTitle} >Demandes de correction validées:</h4>
-                    <div className={styles.List} style={{ maxHeight: '200px' }}>
-                      {(summary.corrections || summary.correction_details || []).length > 0 ? (
-                        <>
-                          {(summary.corrections || summary.correction_details || []).map((corr: any) => {
-                            const agentName = typeof corr.agent === 'string'
-                              ? corr.agent
-                              : corr.agent?.nom || corr.agent?.prenom
-                                ? `${corr.agent.nom || ''} ${corr.agent.prenom || ''}`.trim()
-                                : corr.agent_nom || corr.id_agent || 'Agent';
-                            const code = corr.ligne?.article?.code_barres || corr.article_code || corr.article?.code_barres || '—';
-                            const articleName = corr.ligne?.article?.nom || corr.article_nom || 'Article';
-                            const entrepotName = corr.ligne?.entrepot?.nom || corr.entrepot_nom || '—';
-                            return (
-                              <div key={corr.id_corr || corr.id} className={styles.Item}>
-
-                                <span
-                                  title={`${articleName}${entrepotName ? ` (${entrepotName})` : ''} -${corr.qte}`}
-                                >
-                                  <strong>[{code}]</strong>{' '}
-
-                                  {articleName.length > 18
-                                    ? `${articleName.substring(0, 18)}...`
-                                    : articleName}
-
-                                  {entrepotName && (
-                                    <>
-                                      {' '}
-                                      <span className={styles.textMuted}>
-                                        (
-                                        {entrepotName.length > 20
-                                          ? `${entrepotName.substring(0, 20)}...`
-                                          : entrepotName}
-                                        )
-                                      </span>
-                                    </>
-                                  )}
-
-                                  {' '}:
-                                  <span className={styles.textDanger}>
-                                    -{formatCompactNumber(corr.qte || 0)}
-                                  </span>
-                                </span>
-                                <strong title={agentName}>{agentName.length > 10 ? `${agentName.substring(0, 10)}...` : agentName}</strong>
-                               
-                              </div>
-                            );
-                          })}
-                        </>
-                      ) : (<div className={styles.Item}>Aucune correction à afficher.</div>)}
-                    </div>
-                  </div>
-
-                  {summary.statut !== 'cloture' && summary.statut !== 'en attente' && (
-                    <>
-                      <div className={styles.detailsContainer}>
-                        <label className={styles.scrollListItem} >
-                          <input
-                            type="checkbox"
-                            className={styles.checkbox}
-                            checked={updateStock}
-                            onChange={e => setUpdateStock(e.target.checked)}
-
-                          />
-                          Mettre à jour les stocks réels
-                        </label>
-                        <p className={styles.noteTime}>
-                          Une sauvegarde Excel des anciennes quantités sera générée automatiquement avant la mise à jour.
-                        </p>
-                      </div>
-                      <div className={styles.alertsimple}>
-                        <i className="bi bi-exclamation-triangle" />
-                        <strong>Attention :</strong> La validation générera le rapport final et supprimera définitivement les données temporaires.
-                      </div>
-
-
-
-                      <div className={styles.modalFooter}>
+                  {modalType === 'terminate' && terminateSuccess.show ? (
+                    <div style={{ padding: '20px', textAlign: 'center' }}>
+                      <i className="bi bi-check-circle-fill" style={{ fontSize: '3rem', color: 'var(--success)' }}></i>
+                      <h4 style={{ margin: '15px 0' }}>Clôturé avec succès</h4>
+                      {terminateSuccess.reportUrl && (
                         <button
                           className={styles.Submit}
-                          onClick={handleTerminate}
-                          disabled={loadingSummary}
+                          onClick={() => window.open(`${BACKEND_URL}${terminateSuccess.reportUrl}`, '_blank')}
+                          title="Télécharger l'Excel"
                         >
-                          {loadingSummary ? 'Clôture en cours...' : 'Valider et Générer le Rapport'}
+                          <i className="bi bi-file-earmark-excel-fill" /> Télécharger Sauvegarde Excel
                         </button>
-                      </div>
-                    </>
-                  )}
-
-                  {summary.statut === 'cloture' && (
-                    <div className={styles.modalFooter} >
-                      <button
-                        style={{ flex: 1 }}
-                        className={styles.DeleteBtn}
-                        onClick={() => window.open(`http://localhost:8000${summary.fichier_path}`, '_blank')}
-                        title="Voir le PDF"
-                      >
-                        <i className="bi bi-file-earmark-pdf-fill" /> Rapport PDF
-                      </button>
+                      )}
                     </div>
-                  )}
-                </>
-              ) : (
-                <p className={styles.tableEmptyMsg}>Impossible de charger le résumé.</p>
-              )}
-            </div>
-          )}
-          {modalType === 'addNote' && (
-            <div className={styles.detailsForm}>
-              {generalError && <div className={styles.fieldError}>{generalError}</div>}
-
-              <div className={styles.detailsContainer}>
-                <label>Sélectionner l'inventaire :</label>
-                <select
-                  className={styles.filterSelect}
-                  style={{ width: '100%' }}
-                  value={selectedInventaireId}
-                  onChange={e => setSelectedInventaireId(e.target.value ? parseInt(e.target.value) : '')}
-                >
-                  <option value="">Choisir un inventaire...</option>
-                  {loadingInventaires ? (
-                    <option value="" disabled>Chargement...</option>
                   ) : (
-                    inventairesList.filter(inv => inv.statut !== 'cloture').map(inv => (
-                      <option key={inv.id_inventaire} value={inv.id_inventaire}>{inv.titre || inv.site}</option>
-                    ))
-                  )}
-                </select>
-              </div>
-
-              <div className={styles.detailsContainer}>
-                <label>Contenu de la note</label>
-                <textarea
-                  className={styles.noteContent}
-                  placeholder="Écrivez votre message ici..."
-                  value={noteContent}
-                  onChange={e => setNoteContent(e.target.value)}
-                />
-              </div>
-
-              <button
-                className={styles.Submit}
-                onClick={() => handleNoteSubmit()}
-                disabled={submittingNote || !noteContent.trim() || !selectedInventaireId}
-              >
-                {submittingNote ? (
-                  <>Envoi <span className={layoutStyles.loadingDots}></span></>
-                ) : 'Envoyer la note'}
-              </button>
-            </div>
-          )}
-
-          {modalType === 'notes' && (
-            <div className={styles.detailsForm}>
-              <div className={styles.noteThread}>
-                {loadingNotes ? (
-                  <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
-                ) : notes.length === 0 ? (
-                  <p className={styles.tableEmptyMsg}>Aucune note pour le moment.</p>
-                ) : (
-                  notes.map((note, index) => {
-                    const user = JSON.parse(localStorage.getItem('user') || '{}');
-                    const isMine = String(note.user?.id) === String(user.id);
-                    const isAdmin = note.user?.role === 'admin';
-                    const canManage = isMine || note.user?.role === 'admin';
-                    const date = new Date(note.created_at);
-                    const today = new Date();
-                    const currentDate = date.toDateString();
-                    const previousDate =
-                      index > 0
-                        ? new Date(notes[index - 1].created_at).toDateString()
-                        : null;
-                    const isToday = date.toDateString() === today.toDateString();
-                    const showDate = currentDate !== previousDate;
-                    return (
-                      <div className={styles.noteContainer}>
-                        {showDate && !isToday && (
-                          <p className={styles.noteDay}>
-                            {date.toLocaleString('fr-FR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
-                            })}
-                          </p>)}
-                        <div
-                          key={note.id_note}
-                          className={`${styles.noteBubble} ${isMine ? styles.noteBubbleMine : ''} `}
-                        >
-                          <div className={styles.noteUser}>
-                            <section>
-                              {note.user?.nom} {note.user?.prenom}
-                              {isAdmin && <span className={styles.adminBadge}>Admin</span>}
-                            </section>
-                            {canManage && editingNoteId !== note.id_note && (
-
-                              <div className={styles.noteMenu} onClick={e => e.stopPropagation()}>
-                                <div className={styles.noteMenuItem} onClick={() => {
-                                  setEditingNoteId(note.id_note);
-                                  setEditNoteContent(note.contenu);
-                                }}>
-                                  <i className="bi bi-pencil" />
-                                </div>
-                                <div className={`${styles.noteMenuItem} ${styles.deleteItem}`} onClick={() => {
-                                  handleNoteDelete(note.id_note);
-                                }}>
-                                  <i className="bi bi-trash" />
-                                </div>
-                              </div>
-
-                            )}
-                          </div>
-
-                          {editingNoteId === note.id_note ? (
-                            <div >
-                              <textarea
-                                className={styles.noteText}
-                                value={editNoteContent}
-                                onChange={e => setEditNoteContent(e.target.value)}
-                                autoFocus
-                              />
-                              <div>
-                                <button className={styles.noteActions} style={{ color: 'red' }} onClick={() => handleNoteUpdate(note.id_note)} disabled={submittingNote}>✓</button>
-                                <button className={styles.noteActions} onClick={() => setEditingNoteId(null)}>✕</button>
-                              </div>
+                    <>
+                        <div className={styles.detailsContainer}>
+                          <h4 className={styles.sectionTitle}>Résumé Global : {summary.titre}</h4>
+                          <div className={styles.displayList}>
+                            <div className={styles.displayItem}><strong>Articles sans écart :</strong> {formatCompactNumber(summary.sans_ecart_count)}</div>
+                            <div className={styles.displayItem}>
+                              <strong className={styles.positiveEcart}>Écarts Positifs (+) :</strong> {formatCompactNumber(summary.ecart_positif_count)}
+                              <span className={styles.ecartPositive}>({formatCurrency(summary.ecart_positif_price || 0, currency, true)})</span>
                             </div>
-                          ) : (
-                            <p className={styles.noteText} >{note.contenu}</p>
-                          )}
-
-                          <div className={styles.noteTime}>
-                            {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <div className={styles.displayItem}>
+                              <strong className={styles.negativeEcart}>Écarts Négatifs (-) :</strong> {formatCompactNumber(summary.ecart_negatif_count)}
+                              <span className={styles.ecartNegative}>({formatCurrency(summary.ecart_negatif_price || 0, currency, true)})</span>
+                            </div>
                           </div>
-                        </div></div>
-                    );
-                  })
-                )}
-              </div>
+                        </div>
 
-              {selectedItem.statut !== 'cloture' ? (
-                <div >
-                  <label >Nouvelle note :</label>
-                  <textarea
-                    className={styles.noteContent}
-                    placeholder="Ajouter une réponse ou instruction..."
-                    value={noteContent}
-                    onChange={e => setNoteContent(e.target.value)}
-                    disabled={submittingNote}
-                  />
+                        <div className={styles.detailsContainer}>
+                          <h4 className={styles.sectionTitle}>Détail des lignes :</h4>
+                          <div className={layoutStyles.tableWrap} style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                            <table className={styles.dashboardTable}>
+                              <thead>
+                                <tr>
+                                  <th>Article</th>
+                                  <th>Entrepôt</th>
+                                  <th>Théorique</th>
+                                  <th>Comptée</th>
+                                  <th>Écart</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {summary.lignes?.map((l: any) => (
+                                  <tr key={l.id_ligne}>
+                                    <td>
+                                      <div style={{ fontWeight: '500' }}>{l.nom}</div>
+                                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{l.code_barres}</div>
+                                    </td>
+                                    <td>{l.entrepot?.nom || 'Tous'}</td>
+                                    <td>{l.quantite_theorique}</td>
+                                    <td>{l.quantite_comptee ?? 0}</td>
+                                    <td style={{ color: l.ecart > 0 ? '#22c55e' : l.ecart < 0 ? '#ef4444' : 'inherit' }}>
+                                      {l.ecart > 0 ? '+' : ''}{l.ecart}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        <div className={styles.detailsContainer}>
+                          <h4 >Agents participants :</h4>
+                          <div className={styles.displayList} >
+                            {summary.agent_names?.map((name: string, idx: number) => (
+                              <span key={idx} className={styles.displayItem} >
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+
+                          <h4 className={styles.sectionTitle} >Détails de quentité comptée par agent :</h4>
+                          <div className={styles.List} style={{ maxHeight: '200px' }}>
+                            {summary.lignes?.filter((l: any) => l.agents_contrib).map((l: any) => {
+                              const agentsArr = (l.agents_contrib || '')
+                                .toString()
+                                .split(',')
+                                .map((s: string) => s.trim())
+                                .filter(Boolean)
+                                .map((s: string) => {
+                                  const m = s.match(/^(.*?)(?:\s*<([^>]+)>)?$/);
+                                  return { name: m ? m[1].trim() : s, email: (m && m[2]) ? m[2].trim() : '' };
+                                });
+                              const code = l.code_barres || l.code || l.article?.code_barres || l.ligne?.article?.code_barres || '';
+                              const articleName = l.nom || l.article?.nom || l.ligne?.article?.nom || 'Article';
+                              const entrepotName = l.entrepot?.nom || l.entrepot_nom || l.nom_entrepot || '';
+                              return (
+                                <div key={l.id_ligne} className={styles.Item}>
+
+                                  <span
+                                    title={`${articleName} (${entrepotName}) : ${l.quantite_comptee}`}
+                                  >
+                                    <strong>[{code}]</strong>{' '}
+
+                                    {articleName.length > 20
+                                      ? `${articleName.substring(0, 20)}...`
+                                      : articleName}
+
+                                    {entrepotName && (
+                                      <>
+                                        {' '}
+                                        <span className={styles.entrepotLabel}>
+                                          (
+                                          {entrepotName.length > 25
+                                            ? `${entrepotName.substring(0, 25)}...`
+                                            : entrepotName}
+                                          )
+                                        </span>
+                                      </>
+                                    )}
+
+                                    {' '}:
+                                    <span className={styles.quantiteValue}>
+                                      {formatCompactNumber(l.quantite_comptee ?? 0)}
+                                    </span>
+                                  </span>
+                                  <strong title={agentsArr.map((a: any) => a.email).join(', ')}>
+                                    {agentsArr.map((a: any, idx: number) => (
+                                      <span key={idx}>
+                                        {a.name}
+
+                                      </span>
+                                    ))}
+                                  </strong>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <h4 className={styles.sectionTitle} >Demandes de correction validées:</h4>
+                          <div className={styles.List} style={{ maxHeight: '200px' }}>
+                            {(summary.corrections || summary.correction_details || []).length > 0 ? (
+                              <>
+                                {(summary.corrections || summary.correction_details || []).map((corr: any) => {
+                                  const agentName = typeof corr.agent === 'string'
+                                    ? corr.agent
+                                    : corr.agent?.nom || corr.agent?.prenom
+                                      ? `${corr.agent.nom || ''} ${corr.agent.prenom || ''}`.trim()
+                                      : corr.agent_nom || corr.id_agent || 'Agent';
+                                  const code = corr.ligne?.article?.code_barres || corr.article_code || corr.article?.code_barres || '—';
+                                  const articleName = corr.ligne?.article?.nom || corr.article_nom || 'Article';
+                                  const entrepotName = corr.ligne?.entrepot?.nom || corr.entrepot_nom || '—';
+                                  return (
+                                    <div key={corr.id_corr || corr.id} className={styles.Item}>
+
+                                      <span
+                                        title={`${articleName}${entrepotName ? ` (${entrepotName})` : ''} -${corr.qte}`}
+                                      >
+                                        <strong>[{code}]</strong>{' '}
+
+                                        {articleName.length > 18
+                                          ? `${articleName.substring(0, 18)}...`
+                                          : articleName}
+
+                                        {entrepotName && (
+                                          <>
+                                            {' '}
+                                            <span className={styles.textMuted}>
+                                              (
+                                              {entrepotName.length > 20
+                                                ? `${entrepotName.substring(0, 20)}...`
+                                                : entrepotName}
+                                              )
+                                            </span>
+                                          </>
+                                        )}
+
+                                        {' '}:
+                                        <span className={styles.textDanger}>
+                                          -{formatCompactNumber(corr.qte || 0)}
+                                        </span>
+                                      </span>
+                                      <strong title={agentName}>{agentName.length > 10 ? `${agentName.substring(0, 10)}...` : agentName}</strong>
+
+                                    </div>
+                                  );
+                                })}
+                              </>
+                            ) : (<div className={styles.Item}>Aucune correction à afficher.</div>)}
+                          </div>
+                        </div>
+
+                        {summary.statut !== 'cloture' && summary.statut !== 'en attente' && (
+                          <>
+                            <div className={styles.detailsContainer}>
+                              <label className={styles.scrollListItem} >
+                                <input
+                                  type="checkbox"
+                                  className={styles.checkbox}
+                                  checked={updateStock}
+                                  onChange={e => setUpdateStock(e.target.checked)}
+
+                                />
+                                Mettre à jour les stocks réels
+                              </label>
+                              <p className={styles.noteTime}>
+                                Une sauvegarde Excel des anciennes quantités sera générée automatiquement avant la mise à jour.
+                              </p>
+                            </div>
+                            <div className={styles.alertsimple}>
+                              <i className="bi bi-exclamation-triangle" />
+                              <strong>Attention :</strong> La validation générera le rapport final et supprimera définitivement les données temporaires.
+                            </div>
+
+
+
+                            <div className={styles.modalFooter}>
+                              <button
+                                className={styles.Submit}
+                                onClick={handleTerminate}
+                                disabled={loadingSummary}
+                              >
+                                {loadingSummary ? 'Clôture en cours...' : 'Valider et Générer le Rapport'}
+                              </button>
+                            </div>
+                          </>
+                        )}
+
+                        {summary.statut === 'cloture' && (
+                          <div className={styles.modalFooter} >
+                            <button
+                              style={{ flex: 1 }}
+                              className={styles.DeleteBtn}
+                              onClick={() => window.open(`${BACKEND_URL}${summary.fichier_path}`, '_blank')}
+                              title="Voir le PDF"
+                            >
+                              <i className="bi bi-file-earmark-pdf-fill" /> Rapport PDF
+                            </button>
+                          </div>
+                        )}
+                      </>
+                  )}
+                    </>
+                  ) : (
+                  <p className={styles.tableEmptyMsg}>Impossible de charger le résumé.</p>
+              )}
+                </div>
+          )}
+              {modalType === 'addNote' && (
+                <div className={styles.detailsForm}>
+                  {generalError && <div className={styles.fieldError}>{generalError}</div>}
+
+                  <div className={styles.detailsContainer}>
+                    <label>Sélectionner l'inventaire :</label>
+                    <select
+                      className={styles.filterSelect}
+                      style={{ width: '100%' }}
+                      value={selectedInventaireId}
+                      onChange={e => setSelectedInventaireId(e.target.value ? parseInt(e.target.value) : '')}
+                    >
+                      <option value="">Choisir un inventaire...</option>
+                      {loadingInventaires ? (
+                        <option value="" disabled>Chargement...</option>
+                      ) : (
+                        inventairesList.filter(inv => inv.statut !== 'cloture').map(inv => (
+                          <option key={inv.id_inventaire} value={inv.id_inventaire}>{inv.titre || inv.site}</option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
+                  <div className={styles.detailsContainer}>
+                    <label>Contenu de la note</label>
+                    <textarea
+                      className={styles.noteContent}
+                      placeholder="Écrivez votre message ici..."
+                      value={noteContent}
+                      onChange={e => setNoteContent(e.target.value)}
+                    />
+                  </div>
+
                   <button
                     className={styles.Submit}
-                    onClick={() => handleNoteSubmit(selectedItem.id_inventaire)}
-                    disabled={submittingNote || !noteContent.trim()}
+                    onClick={() => handleNoteSubmit()}
+                    disabled={submittingNote || !noteContent.trim() || !selectedInventaireId}
                   >
                     {submittingNote ? (
-                      <>Envoi <span className={layoutStyles.loadingDots}>Envoi en cours</span></>
-                    ) : 'Ajouter'}
+                      <>Envoi <span className={layoutStyles.loadingDots}></span></>
+                    ) : 'Envoyer la note'}
                   </button>
                 </div>
-              ) : (
-                <div className={`${styles.noteContent} ${styles.modalFooter}`} >
-                  <i className="bi bi-lock-fill" /> Cet inventaire est cloturé. Les notes sont en lecture seule.
+              )}
+
+              {modalType === 'notes' && (
+                <div className={styles.detailsForm}>
+                  <div style={{ marginBottom: '15px' }}>
+                    <div className={styles.InputGroup}>
+                      <i className="bi bi-search" />
+                      <input
+                        type="text"
+                        placeholder="Rechercher dans les notes..."
+                        value={noteSearch}
+                        onChange={(e) => setNoteSearch(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className={styles.noteThread}>
+                    {loadingNotes ? (
+                      <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
+                    ) : notes.length === 0 ? (
+                      <p className={styles.tableEmptyMsg}>Aucune note pour le moment.</p>
+                    ) : (
+                      (() => {
+                        const filteredNotes = notes.filter(n =>
+                          (n.contenu || '').toLowerCase().includes(noteSearch.toLowerCase()) ||
+                          ((n.user?.nom || '') + ' ' + (n.user?.prenom || '')).toLowerCase().includes(noteSearch.toLowerCase())
+                        );
+
+                        if (filteredNotes.length === 0) {
+                          return <p className={styles.tableEmptyMsg}>Aucune note ne correspond à votre recherche.</p>;
+                        }
+
+                        return filteredNotes.map((note, index) => {
+                          const user = JSON.parse(localStorage.getItem('user') || '{}');
+                          const isMine = String(note.user?.id) === String(user.id);
+                          const isAdmin = note.user?.role === 'admin';
+                          const canManage = isMine || note.user?.role === 'admin';
+                          const date = new Date(note.created_at);
+                          const today = new Date();
+                          const currentDate = date.toDateString();
+                          const previousDate =
+                            index > 0
+                              ? new Date(notes[index - 1].created_at).toDateString()
+                              : null;
+                          const isToday = date.toDateString() === today.toDateString();
+                          const showDate = currentDate !== previousDate;
+                          return (
+                            <div className={styles.noteContainer}>
+                              {showDate && !isToday && (
+                                <p className={styles.noteDay}>
+                                  {date.toLocaleString('fr-FR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                  })}
+                                </p>)}
+                              <div
+                                key={note.id_note}
+                                className={`${styles.noteBubble} ${isMine ? styles.noteBubbleMine : ''} `}
+                              >
+                                <div className={styles.noteUser}>
+                                  <section>
+                                    {note.user?.nom} {note.user?.prenom}
+                                    {isAdmin && <span className={styles.adminBadge}>Admin</span>}
+                                  </section>
+                                  {canManage && editingNoteId !== note.id_note && (
+
+                                    <div className={styles.noteMenu} onClick={e => e.stopPropagation()}>
+                                      <div className={styles.noteMenuItem} onClick={() => {
+                                        setEditingNoteId(note.id_note);
+                                        setEditNoteContent(note.contenu);
+                                      }}>
+                                        <i className="bi bi-pencil" />
+                                      </div>
+                                      <div className={`${styles.noteMenuItem} ${styles.deleteItem}`} onClick={() => {
+                                        handleNoteDelete(note.id_note);
+                                      }}>
+                                        <i className="bi bi-trash" />
+                                      </div>
+                                    </div>
+
+                                  )}
+                                </div>
+
+                                {editingNoteId === note.id_note ? (
+                                  <div >
+                                    <textarea
+                                      className={styles.noteText}
+                                      value={editNoteContent}
+                                      onChange={e => setEditNoteContent(e.target.value)}
+                                      autoFocus
+                                    />
+                                    <div>
+                                      <button className={styles.noteActions} style={{ color: 'red' }} onClick={() => handleNoteUpdate(note.id_note)} disabled={submittingNote}>✓</button>
+                                      <button className={styles.noteActions} onClick={() => setEditingNoteId(null)}>✕</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className={styles.noteText} >{note.contenu}</p>
+                                )}
+
+                                <div className={styles.noteTime}>
+                                  {new Date(note.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </div></div>
+                          );
+                        })
+                      })()
+                    )}
+                  </div>
+
+                  {selectedItem.statut !== 'cloture' ? (
+                    <div >
+                      <label >Nouvelle note :</label>
+                      <textarea
+                        className={styles.noteContent}
+                        placeholder="Ajouter une réponse ou instruction..."
+                        value={noteContent}
+                        onChange={e => setNoteContent(e.target.value)}
+                        disabled={submittingNote}
+                      />
+                      <button
+                        className={styles.Submit}
+                        onClick={() => handleNoteSubmit(selectedItem.id_inventaire)}
+                        disabled={submittingNote || !noteContent.trim()}
+                      >
+                        {submittingNote ? (
+                          <>Envoi <span className={layoutStyles.loadingDots}>Envoi en cours</span></>
+                        ) : 'Ajouter'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`${styles.noteContent} ${styles.modalFooter}`} >
+                      <i className="bi bi-lock-fill" /> Cet inventaire est cloturé. Les notes sont en lecture seule.
+                    </div>
+                  )}
+                </div>
+
+              )}
+
+              {modalType === 'correctionRequests' && (
+                <div className={styles.detailsForm}>
+                  {/* Barre de recherche */}
+                  <div className={styles.InputGroup} style={{ marginBottom: '1rem' }}>
+                    <i className="bi bi-search" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher par titre inventaire ou nom article..."
+                      value={correctionSearch}
+                      onChange={e => setCorrectionSearch(e.target.value)}
+                    />
+                  </div>
+
+                  {loadingCorrections ? (
+                    <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
+                  ) : (() => {
+                    const filtered = corrections.filter(corr => {
+                      const search = correctionSearch.toLowerCase();
+                      const titre = (corr.ligne?.inventaire?.titre || corr.ligne?.inventaire?.site || '').toLowerCase();
+                      const nomArticle = (corr.ligne?.article?.nom || '').toLowerCase();
+                      return titre.includes(search) || nomArticle.includes(search);
+                    });
+                    if (filtered.length === 0) {
+                      return <p className={styles.tableEmptyMsg}>Aucune demande en attente.</p>;
+                    }
+                    return (
+                      <div className={styles.scrollList} style={{ maxHeight: '500px' }}>
+                        {filtered.map((corr) => (
+                          <div key={corr.id_corr} className={styles.correctionCard}>
+                            <div className={styles.correctionHeader}>
+                              <h3>
+                                {corr.ligne?.article?.nom} <span>({corr.ligne?.article?.code_barres})</span>
+                              </h3>
+                              <span className={styles.statusEnAttente}>
+                                en attente
+                              </span>
+                            </div>
+
+                            <div className={styles.correctionDetails}>
+                              <div><i className="bi bi-clipboard2-check" /><strong> Inventaire:</strong> {corr.ligne?.inventaire?.titre || corr.ligne?.inventaire?.site}</div>
+                              <div><i className="bi bi-person" /><strong> Agent:</strong> {corr.agent?.nom} {corr.agent?.prenom}</div>
+                              <div>
+                                <i className="bi bi-arrow-down-circle" />
+                                <strong> Quantité à soustraire:</strong>{' '}
+                                <span style={{ color: '#dc3545', fontWeight: 700 }}>-{corr.qte}</span>
+                                <span style={{ color: '#64748b', fontSize: '0.65rem', marginLeft: '6px' }}>
+                                  (comptée: {corr.ligne?.quantite_comptee} → {Math.max(0, (corr.ligne?.quantite_comptee ?? 0) - corr.qte)})
+                                </span>
+                              </div>
+                              {corr.description ? (
+                                <fieldset className={styles.correctionMotifBox}>
+                                  <legend>Remarque:</legend> {corr.description}
+                                </fieldset>
+                              ) : null}
+                            </div>
+
+                            <div className={styles.flexRowCenter}>
+                              <button
+                                className={styles.ActionButton}
+                                onClick={() => handleCorrectionAction(corr.id_corr, 'valide')}
+                                disabled={submittingNote}
+                              >
+                                <i className="bi bi-check-lg" /> Valider
+                              </button>
+                              <button
+                                className={styles.DeleteBtn}
+                                onClick={() => handleCorrectionAction(corr.id_corr, 'refuse')}
+                                disabled={submittingNote}
+                              >
+                                <i className="bi bi-x-lg" /> Refuser
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>
-
-          )}
-
-          {modalType === 'correctionRequests' && (
-            <div className={styles.detailsForm}>
-              {/* Barre de recherche */}
-              <div className={styles.InputGroup} style={{ marginBottom: '1rem' }}>
-                <i className="bi bi-search" />
-                <input
-                  type="text"
-                  placeholder="Rechercher par titre inventaire ou nom article..."
-                  value={correctionSearch}
-                  onChange={e => setCorrectionSearch(e.target.value)}
-                />
-              </div>
-
-              {loadingCorrections ? (
-                <div className={styles.tableEmptyMsg}><span className={layoutStyles.loadingDots}></span></div>
-              ) : (() => {
-                const filtered = corrections.filter(corr => {
-                  const search = correctionSearch.toLowerCase();
-                  const titre = (corr.ligne?.inventaire?.titre || corr.ligne?.inventaire?.site || '').toLowerCase();
-                  const nomArticle = (corr.ligne?.article?.nom || '').toLowerCase();
-                  return titre.includes(search) || nomArticle.includes(search);
-                });
-                if (filtered.length === 0) {
-                  return <p className={styles.tableEmptyMsg}>Aucune demande en attente.</p>;
-                }
-                return (
-                  <div className={styles.scrollList} style={{ maxHeight: '500px' }}>
-                    {filtered.map((corr) => (
-                      <div key={corr.id_corr} className={styles.correctionCard}>
-                        <div className={styles.correctionHeader}>
-                          <h3>
-                            {corr.ligne?.article?.nom} <span>({corr.ligne?.article?.code_barres})</span>
-                          </h3>
-                          <span className={styles.statusEnAttente}>
-                            en attente
-                          </span>
-                        </div>
-
-                        <div className={styles.correctionDetails}>
-                          <div><i className="bi bi-clipboard2-check" /><strong> Inventaire:</strong> {corr.ligne?.inventaire?.titre || corr.ligne?.inventaire?.site}</div>
-                          <div><i className="bi bi-person" /><strong> Agent:</strong> {corr.agent?.nom} {corr.agent?.prenom}</div>
-                          <div>
-                            <i className="bi bi-arrow-down-circle" />
-                            <strong> Quantité à soustraire:</strong>{' '}
-                            <span style={{ color: '#dc3545', fontWeight: 700 }}>-{corr.qte}</span>
-                            <span style={{ color: '#64748b', fontSize: '0.65rem', marginLeft: '6px' }}>
-                              (comptée: {corr.ligne?.quantite_comptee} → {Math.max(0, (corr.ligne?.quantite_comptee ?? 0) - corr.qte)})
-                            </span>
-                          </div>
-                          {corr.description ? (
-                            <fieldset className={styles.correctionMotifBox}>
-                              <legend>Remarque:</legend> {corr.description}
-                            </fieldset>
-                          ) : null}
-                        </div>
-
-                        <div className={styles.flexRowCenter}>
-                          <button
-                            className={styles.ActionButton}
-                            onClick={() => handleCorrectionAction(corr.id_corr, 'valide')}
-                            disabled={submittingNote}
-                          >
-                            <i className="bi bi-check-lg" /> Valider
-                          </button>
-                          <button
-                            className={styles.DeleteBtn}
-                            onClick={() => handleCorrectionAction(corr.id_corr, 'refuse')}
-                            disabled={submittingNote}
-                          >
-                            <i className="bi bi-x-lg" /> Refuser
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-            </div>
-          )}
-        </div>
       </div>
-    </div>
-  );
+      </div>
+
+      );
 };
 
-export default InventaireModals;
+      export default InventaireModals;

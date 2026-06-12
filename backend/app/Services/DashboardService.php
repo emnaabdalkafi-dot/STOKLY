@@ -28,7 +28,7 @@ class DashboardService
             'resume_rapide' => $this->repository->getQuickSummary($invId),
             'performance_agents' => $this->repository->getAgentPerformance($invId),
             'ecarts_list' => $this->repository->getEcartsList($invId),
-            'inventories_list' => $this->repository->getInventories(), // Always global
+            'inventories_list' => $this->repository->getInventories(), 
             'recent_activities' => $this->repository->getRecentActivities($invId),
         ];
     }

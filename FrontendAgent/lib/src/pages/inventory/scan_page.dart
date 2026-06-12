@@ -157,12 +157,17 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
     });
     
     try {
+      int? selectedEntrepotId = widget.selectedEntrepotId ?? widget.inventoryData?['id_entrepot'];
+      if (selectedEntrepotId == null && widget.inventoryData?['type_source'] == 'tous' && _entrepots.isNotEmpty) {
+        selectedEntrepotId = _entrepots.first['id_entrepot'];
+      }
+
       // Étape 1: Essayer de scanner en ligne
       final result = await _inventoryService.scanBarcode(
         widget.inventoryId, 
         barcode.trim(), 
         quantite: quantite,
-        idEntrepot: widget.selectedEntrepotId,
+        idEntrepot: selectedEntrepotId,
       );
 
       if (mounted) {
@@ -182,25 +187,31 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
             });
           });
         } else {
-          // Article non trouvé ou hors inventaire
-          final typeSource = widget.inventoryData?['type_source'] ?? '';
-          final isUnknown = result['found'] == false;
-          final canAdd = typeSource == 'tous' || typeSource == 'entrepot';
-          
-          setState(() => _isScanning = false);
-          
-          if (isUnknown && canAdd) {
-            final localArticle = await _db.getArticleByBarcode(barcode.trim());
-            if (localArticle != null && widget.selectedEntrepotId != null && localArticle['id_entrepot'] != widget.selectedEntrepotId) {
-              _showWrongWarehouseDialog(barcode.trim(), quantite, localArticle['nom']);
+          if (result.containsKey('found')) {
+            final typeSource = widget.inventoryData?['type_source'] ?? '';
+            final isUnknown = result['found'] == false;
+            final canAdd = result['can_add'] ?? (typeSource == 'tous' || typeSource == 'entrepot');
+            
+            setState(() => _isScanning = false);
+            
+            if (canAdd) {
+              if (isUnknown) {
+                final localArticle = await _db.getArticleByBarcode(barcode.trim());
+                if (localArticle != null && widget.selectedEntrepotId != null && localArticle['id_entrepot'] != widget.selectedEntrepotId) {
+                  _showWrongWarehouseDialog(barcode.trim(), quantite, localArticle['nom']);
+                } else {
+                  // Propose adding the article
+                  _showUnknownArticleDialog(barcode.trim(), quantite);
+                }
+              } else {
+                final articleNom = result['article'] != null ? result['article']['nom'] : 'inconnu';
+                _showKnownArticleDialog(barcode.trim(), quantite, articleNom);
+              }
             } else {
-              // Propose adding the article
-              _showUnknownArticleDialog(barcode.trim(), quantite);
+              _showErrorDialog("Article hors inventaire\nCet article n'est pas inclus dans cet inventaire.");
             }
-          } else if (!isUnknown && canAdd) {
-            final articleNom = result['article'] != null ? result['article']['nom'] : 'inconnu';
-            _showKnownArticleDialog(barcode.trim(), quantite, articleNom);
           } else {
+            setState(() => _isScanning = false);
             _handleOfflineScan(barcode.trim(), quantite: quantite);
           }
           return;

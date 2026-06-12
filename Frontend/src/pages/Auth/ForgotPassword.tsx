@@ -17,7 +17,7 @@ const ForgotPassword = () => {
         setMessage(null);
 
         try {
-            const response = await axios.post('http://localhost:8000/api/forgot-password', { email });
+            const response = await axios.post('https://stokly-production.up.railway.app/api/forgot-password', { email });
             setMessage({ type: 'success', text: response.data.message });
         } catch (error: any) {
             setMessage({

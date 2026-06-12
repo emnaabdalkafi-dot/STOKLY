@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import styles from './layout.module.css';
 import { useAuth } from '../../context/AuthContext';
-
+import { BACKEND_URL } from '../../services/api';
 interface SidebarProps {
   onLogout?: () => void;
   isOpen?: boolean;
@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onLogout, isOpen = true }) => {
        <div className={styles.dashboardUserAvatar} onClick={() => navigate("/parametres")} >
   {user?.avatar ? (
     <img 
-      src={`http://localhost:8000${user.avatar}`} 
+      src={`${BACKEND_URL}${user.avatar}`} 
       alt="Avatar" 
     />
   ) : (

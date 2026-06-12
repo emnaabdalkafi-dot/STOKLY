@@ -3,8 +3,8 @@ class ApiConstants {
   static const String baseUrl   = "$serverUrl/api";
 
   // Laravel Reverb (WebSocket) config
-  static const String reverbHost   = "192.168.1.181";
-  static const int    reverbPort   = 8080;
+  static const String reverbHost   = "stokly-production.up.railway.app";
+  static const int    reverbPort   = 443;
   static const String reverbAppKey = "p4gucxacg2eug5fsjcpr";
-  static const String reverbScheme = "ws"; // ws for http, wss for https
+  static const String reverbScheme = "wss"; // ws for http, wss for https
 }

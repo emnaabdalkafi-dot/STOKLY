@@ -216,8 +216,7 @@ function SidebarRight({ isOpen = true, onToggle }: SidebarRightProps) {
   ) : (
     <div className={styles.notificationItem}>
       <div
-        className={styles.notifTitle}
-        style={{ color: '#94a3b8' }}
+        className={styles.emptyMsg}
       >
         Aucune notification
       </div>
@@ -264,7 +263,7 @@ function SidebarRight({ isOpen = true, onToggle }: SidebarRightProps) {
                   action.includes('en cours') || action.includes('en_cours') ||
                   action.includes('agent inactif') || action.includes('agent_inactif');
               }).length === 0 && (
-                  <div className={styles.notifTitle} style={{ fontWeight: 400, color: '#94a3b8', padding: '10px' }}>Aucune activité récente</div>
+                  <div className={styles.emptyMsg} >Aucune activité récente</div>
                 )}
             </div>
           </div>
@@ -300,7 +299,7 @@ function SidebarRight({ isOpen = true, onToggle }: SidebarRightProps) {
                   return action.includes('inconnu') || action.includes('propose') ||
                     action.includes('depasse');
                 }).length === 0 && (
-                    <div className={styles.notifTitle} style={{ fontWeight: 400, color: '#94a3b8', padding: '10px' }}>Aucune alerte critique</div>
+                    <div className={styles.emptyMsg} >Aucune alerte critique</div>
                   )}
               </div>
             </div>

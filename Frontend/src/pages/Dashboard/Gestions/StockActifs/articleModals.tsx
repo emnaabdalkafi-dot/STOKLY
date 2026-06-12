@@ -66,7 +66,7 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
   });
   const [qteMode, setQteMode] = useState<'totale' | 'entrepot'>('totale');
   const [loading, setLoading] = useState(false);
-  const [alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const [_alertMsg, setAlertMsg] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [newCatName, setNewCatName] = useState('');
   const [newEntName, setNewEntName] = useState('');
@@ -78,7 +78,7 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
       onReloadSettings?.();
     } catch { /* ignore */ }
   };
-  const addInlineEntrepot = async () => {
+  const _addInlineEntrepot = async () => {
     if (!newEntName.trim()) return;
     try {
       await api.post(`/stock/entrepots`, { nom: newEntName });
@@ -272,7 +272,11 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
                 </div>
               </div>
             ) : (
-              <>
+              entrepots.length === 0 ? (
+                <div className={`${styles.list} ${styles.scrollList}`}>
+                  <p className={styles.emptyMsg}>Aucun entrepôt disponible</p>
+                </div>
+              ) : (
                 <div className={`${styles.list} ${styles.scrollList}`}>
                   {entrepots.map(en => {
                     const selected = form.entrepots.find(e => e.id_entrepot === en.id_entrepot);
@@ -286,6 +290,7 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
                             onChange={() => toggleEntrepot(en.id_entrepot)}
                           />
                           {en.nom}
+
                         </label>
                         {selected && (
                           <div className={`${styles.InputGroup} ${styles.qteInputWrap}`}>
@@ -301,15 +306,7 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
                     );
                   })}
                 </div>
-                <div className={styles.inlineAddRow}>
-                  <div className={`${styles.InputGroup}`}style={{ flex: 1 }}>
-                    <i className="bi bi-plus" />
-                    <input placeholder="Nouvel entrepôt..." value={newEntName} onChange={e => setNewEntName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInlineEntrepot(); } }} />
-                  </div>
-                  <button type="button" className={styles.inlineAddBtn} onClick={addInlineEntrepot}>Ajouter</button>
-                </div>
-              </>
+              )
             )}
           </div>
           <button type="submit" className={styles.Submit}  disabled={loading}>

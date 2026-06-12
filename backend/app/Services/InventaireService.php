@@ -60,27 +60,7 @@ class InventaireService
 
     protected function createLignes($inventaire, $data)
     {
-        if ($data['type_source'] === 'tous') {
-            $articles = Article::with('entrepots')->get();
-            foreach ($articles as $article) {
-                if ($article->entrepots->isNotEmpty()) {
-                    foreach ($article->entrepots as $entrepot) {
-                        $this->repository->createLigne([
-                            'id_inventaire' => $inventaire->id_inventaire,
-                            'id_article' => $article->id_article,
-                            'id_entrepot' => $entrepot->id_entrepot,
-                            'quantite_theorique' => $entrepot->pivot->quantite ?? 0,
-                        ]);
-                    }
-                } else {
-                    $this->repository->createLigne([
-                        'id_inventaire' => $inventaire->id_inventaire,
-                        'id_article' => $article->id_article,
-                        'quantite_theorique' => $article->quantite_total,
-                    ]);
-                }
-            }
-        } elseif ($data['type_source'] === 'entrepot' && !empty($data['id_entrepot'])) {
+        if ($data['type_source'] === 'entrepot' && !empty($data['id_entrepot'])) {
             $entrepot = Entrepot::with('articles')->find($data['id_entrepot']);
             if ($entrepot) {
                 foreach ($entrepot->articles as $article) {
@@ -92,8 +72,17 @@ class InventaireService
                     ]);
                 }
             }
-        } elseif ($data['type_source'] === 'article' && !empty($data['articles'])) {
-            $articles = Article::with('entrepots')->whereIn('id_article', $data['articles'])->get();
+        } elseif (
+            $data['type_source'] === 'tous' ||
+            $data['type_source'] === 'article'
+        ) {
+            if ($data['type_source'] === 'tous') {
+                $articles = Article::with('entrepots')->get();
+            } else { 
+                $articles = Article::with('entrepots')
+                    ->whereIn('id_article', $data['articles'])
+                    ->get();
+            }
             foreach ($articles as $article) {
                 if ($article->entrepots->isNotEmpty()) {
                     foreach ($article->entrepots as $entrepot) {
@@ -203,18 +192,24 @@ class InventaireService
         if (!$article) return ['success' => false, 'found' => false, 'message' => 'Article non trouvé.'];
 
         $ligne = $this->repository->getLigneByArticle($inventaireId, $article->id_article, $idEntrepot);
-        if (!$ligne) return ['success' => false, 'found' => true, 'message' => 'Article hors inventaire pour cet entrepôt.', 'article' => $article];
+        if (!$ligne) {
+            $inventaire = \App\Models\Inventaire::find($inventaireId);
+            $canAdd = false;
+            if ($inventaire->type_source === 'tous' || $inventaire->type_source === 'entrepot') {
+                $canAdd = true;
+            } elseif ($inventaire->type_source === 'article') {
+                $canAdd = \App\Models\LigneInventaire::where('id_inventaire', $inventaireId)
+                                       ->where('id_article', $article->id_article)
+                                       ->exists();
+            }
+            return ['success' => false, 'found' => true, 'can_add' => $canAdd, 'message' => 'Article hors inventaire pour cet entrepôt.', 'article' => $article];
+        }
 
         $this->repository->createScan([
             'id_ligne' => $ligne->id_ligne,
             'id_agent' => $userId,
             'quantite' => $quantite,
         ]);
-
-        // Update agent activity timestamp
-        \App\Models\Affectation::where('id_inventaire', $inventaireId)
-            ->where('id_agent', $userId)
-            ->update(['statut_participation' => 'actif']);
 
         // Update the ligne_inventaire based on sum of scans for this ligne
         $totalComptee = \App\Models\Scan::where('id_ligne', $ligne->id_ligne)
@@ -289,38 +284,13 @@ class InventaireService
     public function terminateInventaire($id, array $data)
     {
         $inventaire = Inventaire::with(['lignes.article', 'affectations.agent'])->findOrFail($id);
-        if ($inventaire->statut === 'cloture') throw new \Exception('Inventaire déjà cloturé.');
 
         return DB::transaction(function () use ($inventaire, $id, $data) {
-            // 1. Sauvegarde (Backup) si demandé ou par défaut pour la sécurité
+            $csvPath = null;
             if (!empty($data['update_stock'])) {
-                $this->createStockBackup($inventaire);
-            }
-
-            // 2. Mettre à jour les lignes avec les données finales envoyées (si présentes)
-            if (!empty($data['lignes'])) {
-                foreach ($data['lignes'] as $ligneData) {
-                    $ligne = $this->repository->findLigne($ligneData['id_ligne']);
-                    if ($ligne && $ligne->id_inventaire == $id) {
-                        $count = $ligneData['quantite_comptee'];
-                        $ecart = ($count == 0 || $count == ($ligne->quantite_theorique ?? 0))
-                            ? 0
-                            : (float)$count - (float)($ligne->quantite_theorique ?? 0);
-                        $ligne->update([
-                            'quantite_comptee' => $count,
-                            'ecart' => $ecart
-                        ]);
-                    }
-                }
-                $inventaire->load(['lignes.article', 'affectations.agent']);
-            }
-
-            // 3. Mise à jour des stocks réels si demandé
-            if (!empty($data['update_stock'])) {
+                $csvPath = $this->createStockBackup($inventaire);
                 $this->applyStockUpdates($inventaire);
             }
-
-            // 4. Génération du Rapport PDF
             $summaryData = $this->prepareSummary($inventaire);
             $summary = $summaryData['summary'];
             $lignesDetails = $summaryData['lignes_details'];
@@ -345,7 +315,7 @@ class InventaireService
                 'fichier_path' => '/storage/' . $filePath
             ]);
 
-            return '/storage/' . $filePath;
+            return $csvPath;
         });
     }
 
@@ -382,7 +352,9 @@ class InventaireService
             $csvContent .= implode(',', array_map(fn($v) => '"' . str_replace('"', '""', $v) . '"', $row)) . "\n";
         }
 
-        Storage::disk('public')->put('backups/' . $csvFileName, "\xEF\xBB\xBF" . $csvContent); // UTF-8 BOM for Excel
+        $filePath = 'backups/' . $csvFileName;
+        Storage::disk('public')->put($filePath, "\xEF\xBB\xBF" . $csvContent); // UTF-8 BOM for Excel
+        return '/storage/' . $filePath;
     }
 
     protected function applyStockUpdates($inventaire)
@@ -426,9 +398,8 @@ class InventaireService
 
         $scansByArticle = $this->repository->getScansByArticle($inventaire->id_inventaire)->groupBy('id_article');
 
-        $lignesDetails = $inventaire->lignes->groupBy('id_article')->map(function($group) use ($scansByArticle) {
-            $first = $group->first();
-            $idArticle = $first->id_article;
+        $lignesDetails = $inventaire->lignes->map(function($ligne) use ($scansByArticle) {
+            $idArticle = $ligne->id_article;
             $articleScans = $scansByArticle->get($idArticle) ?? collect();
             $agentsContrib = $articleScans
                 ->map(fn($s) => trim((($s->agent->nom ?? '') . ' ' . ($s->agent->prenom ?? '')) . ($s->agent->email ? ' <' . $s->agent->email . '>' : '')))
@@ -436,18 +407,17 @@ class InventaireService
                 ->filter()
                 ->implode(', ');
 
-            $totalTheorique = $group->sum('quantite_theorique');
-            $totalComptee = $group->sum('quantite_comptee');
-            $entrepotNames = $group->map(fn($g) => $g->entrepot?->nom)->filter()->unique()->values();
-            $entrepotName = $entrepotNames->count() === 1 ? $entrepotNames->first() : null;
+            $totalTheorique = $ligne->quantite_theorique ?? 0;
+            $totalComptee = $ligne->quantite_comptee ?? 0;
+            $entrepotName = $ligne->entrepot->nom ?? 'Tous';
 
             return [
-                'nom' => $first->article->nom ?? '...',
-                'code_barres' => $first->article->code_barres ?? '...',
-                'prix' => $first->article->prix ?? 0,
+                'nom' => $ligne->article->nom ?? '...',
+                'code_barres' => $ligne->article->code_barres ?? '...',
+                'prix' => $ligne->article->prix ?? 0,
                 'theorique' => $totalTheorique,
                 'comptee' => $totalComptee,
-                'ecart' => ($totalComptee == 0 || $totalComptee == $totalTheorique) ? 0 : $totalComptee - $totalTheorique,
+                'ecart' => $ligne->ecart ?? (($totalComptee == 0 || $totalComptee == $totalTheorique) ? 0 : $totalComptee - $totalTheorique),
                 'entrepot' => $entrepotName,
                 'agents_contrib' => $agentsContrib
             ];

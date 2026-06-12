@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styles from '../Gestions.module.css';
 import layoutStyles from '../../../../components/layout/layout.module.css';
-import api from '../../../../services/api';
+import api, { BACKEND_URL } from '../../../../services/api';
 import { formatCompactNumber } from '../../../../utils/formatters';
 import InventaireModals from '../Inventaires/InventaireModals';
 
@@ -179,7 +179,7 @@ const Historique: React.FC = () => {
                         {inv.fichier_path && (
                           <button 
                             className={styles.ActionButton}
-                            onClick={() => window.open(`http://localhost:8000${inv.fichier_path}`, '_blank')}                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                            onClick={() => window.open(`${BACKEND_URL}${inv.fichier_path}`, '_blank')}                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
                           >
                             <i className="bi bi-file-earmark-pdf-fill" style={{ color: '#ef4444'}} /> Rapport PDF
                           </button>

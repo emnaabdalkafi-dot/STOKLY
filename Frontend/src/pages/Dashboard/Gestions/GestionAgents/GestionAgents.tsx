@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import api from '../../../../services/api';
+import api, { BACKEND_URL } from '../../../../services/api';
 import echo from '../../../../services/echo';
 import styles from '../Gestions.module.css';
 import layoutStyles from '../../../../components/layout/layout.module.css';
@@ -353,7 +353,7 @@ const Agents: React.FC = () => {
                         <div className={styles.dashboardUserAvatar}>
                           {agent.avatar ? (
                             <img
-                              src={agent.avatar.startsWith('http') ? agent.avatar : `http://localhost:8000${agent.avatar}`}
+                              src={agent.avatar.startsWith('http') ? agent.avatar : `${BACKEND_URL}${agent.avatar}`}
                               alt="Avatar"
                             />
                           ) : (

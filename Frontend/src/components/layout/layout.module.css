@@ -1343,3 +1343,8 @@ padding: 7px;
   color: #f8fafc;
 }
 
+.emptyMsg {
+  color: #475569;
+  text-align: center;
+  font-size: 0.7rem;
+}

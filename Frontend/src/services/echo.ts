@@ -17,12 +17,12 @@ const createEcho = (): any => {
     broadcaster: 'reverb',
     key: 'p4gucxacg2eug5fsjcpr',
     wsHost: WS_HOST,
-    wsPort: 8080,
-    wssPort: 8080,
-    forceTLS: false,
+    wsPort: 443,
+    wssPort: 443,
+    forceTLS: true,
     disableStats: true,
     enabledTransports: ['ws', 'wss'],
-    authEndpoint: `http://${WS_HOST}:8000/api/broadcasting/auth`,
+    authEndpoint: `https://${WS_HOST}/api/broadcasting/auth`,
     auth: {
       headers: {
         Authorization: `Bearer ${token}`,

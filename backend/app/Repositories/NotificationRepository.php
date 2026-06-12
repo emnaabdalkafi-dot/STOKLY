@@ -7,24 +7,12 @@ use App\Models\Note;
 
 class NotificationRepository
 {
-    /**
-     * Get notifications for a user based on their role.
-     *
-     * Agent rules:
-     *  - Type 'nouvel inventaire': only if agent is assigned to that inventaire
-     *  - Type 'nouvelle note': only if agent is assigned to the inventaire
-     *                          AND the note was NOT written by this agent
-     *
-     * Admin rules:
-     *  - Everything EXCEPT 'nouvel inventaire' (that's agent-only)
-     *  - Except 'nouvelle note' that the admin themselves wrote
-     */
     public function getForUser($user)
     {
         if ($user->role === 'agent') {
             return $this->getAgentNotifications($user);
         }
-
+        
         return $this->getAdminNotifications($user);
     }
 

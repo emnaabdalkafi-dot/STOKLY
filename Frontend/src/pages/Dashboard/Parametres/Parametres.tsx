@@ -6,7 +6,7 @@ import layoutStyles from '../../../components/layout/layout.module.css';
 
 const Parametres: React.FC = () => {
   const { user, updateUser } = useAuth();
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [currency, setCurrency] = useState(localStorage.getItem('stokly_currency') || 'DT');
   const [form, setForm] = useState({
@@ -18,7 +18,7 @@ const Parametres: React.FC = () => {
     password: '',
     password_confirmation: ''
   });
-  
+
   const [errors, setErrors] = useState<any>({});
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,8 +49,8 @@ const Parametres: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const hasChanged = 
+
+    const hasChanged =
       form.nom !== (user?.nom || '') ||
       form.prenom !== (user?.prenom || '') ||
       form.email !== (user?.email || '') ||
@@ -99,110 +99,112 @@ const Parametres: React.FC = () => {
       {isEditing && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalPage}>
-            <div className={styles.modalHeader} > 
-                         <h3 className={styles.modalTitle} >Modifier le profil</h3>
+            <div className={styles.modalHeader} >
+              <h3 className={styles.modalTitle} >Modifier le profil</h3>
 
-            <button
-              className={styles.closeBtn }
-              onClick={() => setIsEditing(false)}
-            >
-              <i className="bi bi-x-lg" />
-            </button>
+              <button
+                className={styles.closeBtn}
+                onClick={() => setIsEditing(false)}
+              >
+                <i className="bi bi-x-lg" />
+              </button>
             </div>
             <div className={styles.modalContent} >
-            <form className={styles.detailsForm} onSubmit={handleSubmit}>
-              <div className={styles.avatarUpload}title="Cliquer pour changer d'avatar" >
-            {user?.avatar ? (
-              <img 
-                src={`http://localhost:8000${user.avatar}`} 
-                alt="Avatar" 
-                onClick={() => fileInputRef.current?.click()}
-              />
-            ) : (
-              <div onClick={() => fileInputRef.current?.click()}>
-                {user?.nom && user?.prenom 
-                  ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}` 
-                  : '??'}
-              </div>
-            )}
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className={styles.fileInputHidden} 
-                  onChange={handleAvatarChange} 
-                  accept="image/*"
-                />
-              </div>
-
-              <div className={styles.detailsGrid}>
-                <div>
-                  <label>Nom</label>
-                  <div className={styles.InputGroup}>
-                    <i className="bi bi-person" />
-                    <input type="text" name="nom" value={form.nom} onChange={handleChange} required />
-                  </div>
-                  {errors.nom && <span className={styles.fieldError}>{errors.nom[0]}</span>}
+              <form className={styles.detailsForm} onSubmit={handleSubmit}>
+                <div className={styles.avatarUpload} title="Cliquer pour changer d'avatar" >
+                  {user?.avatar ? (
+                    <img
+                      src={`https://stokly-production.up.railway.app${user.avatar}`}
+                      alt= {user?.nom && user?.prenom
+                        ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}`
+                        : '??'}
+                      onClick={() => fileInputRef.current?.click()}
+                    />
+                  ) : (
+                    <div onClick={() => fileInputRef.current?.click()}>
+                      {user?.nom && user?.prenom
+                        ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}`
+                        : '??'}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className={styles.fileInputHidden}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                  />
                 </div>
-                <div>
-                  <label>Prénom</label>
-                  <div className={styles.InputGroup}>
-                    <i className="bi bi-person" />
-                    <input type="text" name="prenom" value={form.prenom} onChange={handleChange} required />
-                  </div>
-                  {errors.prenom && <span className={styles.fieldError}>{errors.prenom[0]}</span>}
-                </div>
-              </div>
 
-              <div>
-                <label>Téléphone</label>
-                <div className={styles.InputGroup}>
-                  <i className="bi bi-telephone" />
-                  <input type="tel" name="tel" maxLength={8} minLength={8} value={form.tel} onChange={handleChange} />
-                </div>
-                {errors.tel && <span className={styles.fieldError}>{errors.tel[0]}</span>}
-              </div>
-
-              <div>
-                <label>Email</label>
-                <div className={styles.InputGroup}>
-                  <i className="bi bi-envelope" />
-                  <input type="email" name="email" value={form.email} onChange={handleChange} required />
-                </div>
-                {errors.email && <span className={styles.fieldError}>{errors.email[0]}</span>}
-              </div>
-
-              <div className={styles.motDePasseSection}>
-                <label >Changer le mot de passe (optionnel)</label>
-                <div className={styles.motDePasseInputs}>
+                <div className={styles.detailsGrid}>
                   <div>
+                    <label>Nom</label>
+                    <div className={styles.InputGroup}>
+                      <i className="bi bi-person" />
+                      <input type="text" name="nom" value={form.nom} onChange={handleChange} required />
+                    </div>
+                    {errors.nom && <span className={styles.fieldError}>{errors.nom[0]}</span>}
+                  </div>
+                  <div>
+                    <label>Prénom</label>
+                    <div className={styles.InputGroup}>
+                      <i className="bi bi-person" />
+                      <input type="text" name="prenom" value={form.prenom} onChange={handleChange} required />
+                    </div>
+                    {errors.prenom && <span className={styles.fieldError}>{errors.prenom[0]}</span>}
+                  </div>
+                </div>
+
+                <div>
+                  <label>Téléphone</label>
+                  <div className={styles.InputGroup}>
+                    <i className="bi bi-telephone" />
+                    <input type="tel" name="tel" maxLength={8} minLength={8} value={form.tel} onChange={handleChange} />
+                  </div>
+                  {errors.tel && <span className={styles.fieldError}>{errors.tel[0]}</span>}
+                </div>
+
+                <div>
+                  <label>Email</label>
+                  <div className={styles.InputGroup}>
+                    <i className="bi bi-envelope" />
+                    <input type="email" name="email" value={form.email} onChange={handleChange} required />
+                  </div>
+                  {errors.email && <span className={styles.fieldError}>{errors.email[0]}</span>}
+                </div>
+
+                <div className={styles.motDePasseSection}>
+                  <label >Changer le mot de passe (optionnel)</label>
+                  <div className={styles.motDePasseInputs}>
+                    <div>
                       <div className={styles.InputGroup}>
                         <i className="bi bi-lock" />
                         <input type="password" name="current_password" placeholder="Mot de passe actuel" value={form.current_password} onChange={handleChange} />
                       </div>
                       {errors.current_password && <span className={styles.fieldError}>{errors.current_password[0]}</span>}
-                  </div>
-                  
-                  <div >
+                    </div>
+
+                    <div >
                       <div className={styles.InputGroup}>
                         <i className="bi bi-shield-lock" />
                         <input type="password" name="password" placeholder="Nouveau mot de passe" value={form.password} onChange={handleChange} />
                       </div>
                       {errors.password && <span className={styles.fieldError}>{errors.password[0]}</span>}
-                  </div>
-                  
-                  <div>
+                    </div>
+
+                    <div>
                       <div className={styles.InputGroup}>
                         <i className="bi bi-shield-check" />
                         <input type="password" name="password_confirmation" placeholder="Confirmer mot de passe" value={form.password_confirmation} onChange={handleChange} />
                       </div>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <button type="submit" disabled={loading} className={styles.Submit}>
-                {loading ? <span className={layoutStyles.loadingDots}></span> : 'Enregistrer'}
-              </button>
-            </form>
+                <button type="submit" disabled={loading} className={styles.Submit}>
+                  {loading ? <span className={layoutStyles.loadingDots}></span> : 'Enregistrer'}
+                </button>
+              </form>
             </div>
           </div>
         </div>
@@ -210,17 +212,19 @@ const Parametres: React.FC = () => {
 
       <section className={styles.dashboardPanel}>
         <div className={styles.profileHeader}>
-            <div title="Cliquer pour changer d'avatar">
+          <div title="Cliquer pour changer d'avatar">
             {user?.avatar ? (
-              <img 
-                src={`http://localhost:8000${user.avatar}`} 
-                alt="Profile"
-                className={styles.authLogoImage} 
+              <img
+                src={`https://stokly-production.up.railway.app${user.avatar}`}
+                alt= {user?.nom && user?.prenom
+                        ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}`
+                        : '??'}
+                className={styles.authLogoImage}
               />
             ) : user ? (
               <div className={styles.authLogoImage} >
-                {user?.nom && user?.prenom 
-                  ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}` 
+                {user?.nom && user?.prenom
+                  ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}`
                   : '??'}
               </div>
             ) : (
@@ -253,39 +257,41 @@ const Parametres: React.FC = () => {
         </div>
 
         <div className={styles.ParametreBody}>
-           <h3 className={styles.ParametreTitle}>Paramètres de l'application :</h3>
-           
-           <div className={styles.inputWrapper}>
-             <label className={styles.inputLabel}>Symbole de la monnaie :</label>
-             <div className={styles.InputGroup} >
-                <i className="bi bi-cash-stack" />
-                <input 
-                  type="text"
-                  className={styles.inputSymbol}
-                  placeholder="Symbole (ex: DT, $, €)"
-                  value={currency}
-                  onChange={(e) => {
-                    setCurrency(e.target.value);
-                  }}
-                  onKeyDown={(e) => { if (e.key === 'Enter') {
+          <h3 className={styles.ParametreTitle}>Paramètres de l'application :</h3>
+
+          <div className={styles.inputWrapper}>
+            <label className={styles.inputLabel}>Symbole de la monnaie :</label>
+            <div className={styles.InputGroup} >
+              <i className="bi bi-cash-stack" />
+              <input
+                type="text"
+                className={styles.inputSymbol}
+                placeholder="Symbole (ex: DT, $, €)"
+                value={currency}
+                onChange={(e) => {
+                  setCurrency(e.target.value);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
                     localStorage.setItem('stokly_currency', currency);
                     window.location.reload();
-                  }}}
-                />
-                {currency !== (localStorage.getItem('stokly_currency') || 'DT') && (
-                  <button 
-                    className={styles.miniOkBtn}
-                    onClick={() => {
-                      localStorage.setItem('stokly_currency', currency);
-                      window.location.reload();
-                    }}
-                  >
-                    OK
-                  </button>
-                )}
-             </div>
-           </div>
-           <p className={styles.description}>Appuyez sur OK ou Entrée pour appliquer le symbole.</p>
+                  }
+                }}
+              />
+              {currency !== (localStorage.getItem('stokly_currency') || 'DT') && (
+                <button
+                  className={styles.miniOkBtn}
+                  onClick={() => {
+                    localStorage.setItem('stokly_currency', currency);
+                    window.location.reload();
+                  }}
+                >
+                  OK
+                </button>
+              )}
+            </div>
+          </div>
+          <p className={styles.description}>Appuyez sur OK ou Entrée pour appliquer le symbole.</p>
         </div>
       </section>
     </main>
