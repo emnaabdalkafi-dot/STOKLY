@@ -694,7 +694,15 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                     ],
 
                     const SizedBox(height: 2),
-                  if (widget.showActionButton && (_details!['type_source'] == 'tous' || _details!['type_source'] == 'article')) ...[
+                  // Afficher le dropdown d'entrepôt uniquement si :
+                  // - le bouton d'action est visible
+                  // - le type source est 'tous' ou 'article'
+                  // - il y a des entrepôts dans la base de données
+                  // - il y a plusieurs entrepôts à choisir (sinon sélection automatique)
+                  if (widget.showActionButton &&
+                      (_details!['type_source'] == 'tous' || _details!['type_source'] == 'article') &&
+                      _globalEntrepots.isNotEmpty &&
+                      _uniqueEntrepots.length > 1) ...[
                       const SizedBox(height: 18),
                       Container(
                         width: double.infinity,
@@ -756,7 +764,12 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                 final isExpired = diffHoursEnd < 0;
                 final isTerminated = statut == 'cloture';
                 
-                final bool isWarehouseRequired = _details!['type_source'] == 'tous' || _details!['type_source'] == 'article';
+                // Un entrepôt est requis seulement si la DB contient des entrepôts
+                // ET que le type_source nécessite une sélection manuelle (plusieurs entrepôts)
+                final bool isWarehouseRequired =
+                    _globalEntrepots.isNotEmpty &&
+                    (_details!['type_source'] == 'tous' || _details!['type_source'] == 'article') &&
+                    _uniqueEntrepots.length > 1;
                 final bool hasSelectedWarehouse = _selectedEntrepotId != null || !isWarehouseRequired;
                 final bool canStart = !isFuture && !isTerminated && !isExpired && hasSelectedWarehouse;
 
@@ -821,7 +834,7 @@ class _InventoryDetailsPageState extends State<InventoryDetailsPage> {
                           Expanded(
                             flex: 2,
                             child: ElevatedButton(
-                              onPressed: (_isStarting || !canStart) ? null : _handleStart,
+                              onPressed: (_isStarting || !canStart) ? null : _showWarehouseSelection,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: AppColors.primary,
                                 disabledBackgroundColor: Colors.grey.shade300,

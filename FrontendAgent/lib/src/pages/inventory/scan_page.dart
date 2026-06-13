@@ -190,7 +190,10 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
           if (result.containsKey('found')) {
             final typeSource = widget.inventoryData?['type_source'] ?? '';
             final isUnknown = result['found'] == false;
-            final canAdd = result['can_add'] ?? (typeSource == 'tous' || typeSource == 'entrepot');
+            // Pour 'article' : autoriser l'ajout seulement si l'article est CONNU dans le système
+            // mais absent de cet entrepôt (found == true). Si le code-barres est totalement inconnu
+            // (found == false), on garde le comportement d'origine : "Article hors inventaire".
+            final canAdd = result['can_add'] ?? (typeSource == 'tous' || typeSource == 'entrepot' || (typeSource == 'article' && !isUnknown));
             
             setState(() => _isScanning = false);
             
@@ -701,7 +704,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                 const SizedBox(height: 14),
 
                 // Warehouse selection if global
-                if (widget.inventoryData?['type_source'] == 'tous' && _entrepots.isNotEmpty) ...[
+                if ((widget.inventoryData?['type_source'] == 'tous' || widget.inventoryData?['type_source'] == 'article') && _entrepots.isNotEmpty) ...[
                   const Text('Entrepôt de destination : ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primary)),
                   const SizedBox(height: 4),
                   Container(
