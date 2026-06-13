@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import api from '../../../services/api';
+import api, { BACKEND_URL } from '../../../services/api';
 import { useAuth } from '../../../context/AuthContext';
 import styles from './Parametres.module.css';
 import layoutStyles from '../../../components/layout/layout.module.css';
@@ -114,7 +114,7 @@ const Parametres: React.FC = () => {
                 <div className={styles.avatarUpload} title="Cliquer pour changer d'avatar" >
                   {user?.avatar ? (
                     <img
-                      src={`https://stokly-production.up.railway.app${user.avatar}`}
+                      src={`${BACKEND_URL}${user.avatar}`}
                       alt= {user?.nom && user?.prenom
                         ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}`
                         : '??'}
@@ -215,7 +215,7 @@ const Parametres: React.FC = () => {
           <div title="Cliquer pour changer d'avatar">
             {user?.avatar ? (
               <img
-                src={`https://stokly-production.up.railway.app${user.avatar}`}
+                src={`${BACKEND_URL}${user.avatar}`}
                 alt= {user?.nom && user?.prenom
                         ? `${user.nom.charAt(0).toUpperCase()}${user.prenom.charAt(0).toUpperCase()}`
                         : '??'}

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import styles from './Auth.module.css';
+import api from '../../services/api';
 import { reconnectEcho } from '../../services/echo';
 import { useAuth } from '../../context/AuthContext';
 
@@ -36,7 +36,7 @@ const Auth: React.FC = () => {
     e.preventDefault();
     setLoginError('');
     try {
-      const response = await axios.post('https://stokly-production.up.railway.app/api/login', {
+      const response = await api.post('/login', {
         email: loginEmail,
         password: loginPassword,
       });
@@ -64,7 +64,7 @@ const Auth: React.FC = () => {
     }
 
     try {
-      const response = await axios.post('https://stokly-production.up.railway.app/api/register', {
+      const response = await api.post('/register', {
         nom,
         prenom,
         email: registerEmail,

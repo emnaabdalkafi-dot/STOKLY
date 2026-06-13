@@ -1,6 +1,6 @@
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
-import  { WS_HOST } from './api';
+import { BACKEND_URL, WS_HOST } from './api';
 // Expose Pusher globally (required by Laravel Echo)
 (window as any).Pusher = Pusher;
 
@@ -22,7 +22,7 @@ const createEcho = (): any => {
     forceTLS: true,
     disableStats: true,
     enabledTransports: ['ws', 'wss'],
-    authEndpoint: `https://${WS_HOST}/api/broadcasting/auth`,
+    authEndpoint: `${BACKEND_URL}/api/broadcasting/auth`,
     auth: {
       headers: {
         Authorization: `Bearer ${token}`,

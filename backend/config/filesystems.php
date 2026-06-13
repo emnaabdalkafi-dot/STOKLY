@@ -33,7 +33,9 @@ return [
         'local' => [
             'driver' => 'local',
             'root' => storage_path('app/private'),
-            'serve' => true,
+            // Must stay false: serve=true registers GET /storage/{path} and conflicts
+            // with the public disk symlink used for avatars and uploaded files.
+            'serve' => false,
             'throw' => false,
             'report' => false,
         ],

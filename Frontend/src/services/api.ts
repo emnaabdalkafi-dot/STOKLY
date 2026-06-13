@@ -1,7 +1,17 @@
 import axios from 'axios';
 
+const rawBackendUrl = import.meta.env.VITE_BACKEND_URL;
+if (!rawBackendUrl) {
+  throw new Error(
+    'VITE_BACKEND_URL is missing. Create Frontend/.env.production (or .env) before running npm run build.',
+  );
+}
+
+export const BACKEND_URL = rawBackendUrl.replace(/\/$/, '');
+export const WS_HOST = new URL(BACKEND_URL).hostname;
+
 const api = axios.create({
-  baseURL: 'https://stokly-production.up.railway.app/api',
+  baseURL: `${BACKEND_URL}/api`,
 });
 
 api.interceptors.request.use((config) => {
@@ -28,5 +38,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-export const WS_HOST = 'stokly-production.up.railway.app';
-export const BACKEND_URL = 'https://stokly-production.up.railway.app';

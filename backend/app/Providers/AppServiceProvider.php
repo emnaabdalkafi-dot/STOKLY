@@ -11,12 +11,12 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Support\Carbon::setLocale('fr');
 
         \Illuminate\Auth\Notifications\ResetPassword::createUrlUsing(function ($user, string $token) {
-            $frontendUrl = env('FRONTEND_URL', 'https://stokly-production.up.railway.app');
+            $frontendUrl = env('FRONTEND_URL', 'https://ns3043834.ip-5-135-191.eu');
             return rtrim($frontendUrl, '/') . '/reset-password?token='.$token.'&email='.$user->getEmailForPasswordReset();
         });
 
         \Illuminate\Auth\Notifications\ResetPassword::toMailUsing(function ($notifiable, string $token) {
-            $frontendUrl = env('FRONTEND_URL', 'https://stokly-production.up.railway.app');
+            $frontendUrl = env('FRONTEND_URL', 'https://ns3043834.ip-5-135-191.eu');
             $url = rtrim($frontendUrl, '/') . '/reset-password?token='.$token.'&email='.$notifiable->getEmailForPasswordReset();
 
             return (new \Illuminate\Notifications\Messages\MailMessage)

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { Link } from 'react-router-dom';
 import styles from './Auth.module.css';
+import api from '../../services/api';
 
 const ForgotPassword = () => {
     const [email, setEmail] = useState('');
@@ -17,7 +17,7 @@ const ForgotPassword = () => {
         setMessage(null);
 
         try {
-            const response = await axios.post('https://stokly-production.up.railway.app/api/forgot-password', { email });
+            const response = await api.post('/forgot-password', { email });
             setMessage({ type: 'success', text: response.data.message });
         } catch (error: any) {
             setMessage({
