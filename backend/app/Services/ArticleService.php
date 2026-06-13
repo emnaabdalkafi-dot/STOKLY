@@ -24,7 +24,7 @@ class ArticleService
     {
         $articles = $this->repository->getAll();
         $totalArticles = $articles->count();
-        
+
         $valeurTotal = 0;
         $ecartPositif = 0;
         $ecartNegatif = 0;
@@ -35,10 +35,10 @@ class ArticleService
             if ($article->etat === 'inconnu') {
                 $totalArticlesInconnus++;
             }
-            
+
             $qte = $article->quantite_total ?? 0;
             $valeurTotal += ($article->prix * $qte);
-            
+
             // On vérifie si l'article est dans au moins un inventaire non terminé
             $articlesInventories = false;
             foreach ($article->lignesInventaire as $ligne) {
@@ -54,7 +54,7 @@ class ArticleService
                     } else {
                         $ecart = $ligne->quantite_comptee - $ligne->quantite_theorique;
                     }
-                    
+
                     if ($ecart > 0) {
                         $ecartPositif += $ecart;
                     } elseif ($ecart < 0) {
@@ -85,128 +85,128 @@ class ArticleService
                 'code_barres' => $data['code_barres'],
                 'nom' => $data['nom'] ?? null,
                 'prix' => isset($data['prix']) && $data['prix'] !== '' ? $data['prix'] : null,
-                'etat' =>'connu',
+                'etat' => 'connu',
             ];
-            
+
             $article = $this->repository->create($articleData);
 
             if (isset($data['categories'])) {
                 $this->repository->syncCategories($article, $data['categories']);
             }
 
-if (!empty($data['entrepots'])){
-    $syncData = [];
-    $total = 0;
+            if (!empty($data['entrepots'])) {
+                $syncData = [];
+                $total = 0;
 
-    foreach ($data['entrepots'] as $ent) {
-        $qte = $ent['quantite'] ?? ($ent['quantite_theorique'] ?? 0);
-        $syncData[$ent['id_entrepot']] = ['quantite' => $qte];
-        $total += $qte;
-    }
+                foreach ($data['entrepots'] as $ent) {
+                    $qte = $ent['quantite'] ?? ($ent['quantite_theorique'] ?? 0);
+                    $syncData[$ent['id_entrepot']] = ['quantite' => $qte];
+                    $total += $qte;
+                }
 
-    $article->quantite_total = $total;
-    $article->save();
+                $article->quantite_total = $total;
+                $article->save();
 
-    $this->repository->syncEntrepots($article, $syncData);
-} else {
-    $article->quantite_total = $data['quantite_total'] ?? 0;
-    $article->save();
+                $this->repository->syncEntrepots($article, $syncData);
+            } else {
+                $article->quantite_total = $data['quantite_total'] ?? 0;
+                $article->save();
 
-    $this->repository->syncEntrepots($article, []);
-}
-           
+                $this->repository->syncEntrepots($article, []);
+            }
+
             return $article->load(['categories', 'entrepots']);
         });
     }
 
- public function updateArticle($id, array $data)
-{
-    return DB::transaction(function () use ($id, $data) {
+    public function updateArticle($id, array $data)
+    {
+        return DB::transaction(function () use ($id, $data) {
 
-        $article = $this->repository->findById($id);
+            $article = $this->repository->findById($id);
 
-        if (
-            isset($data['code_barres']) &&
-            $data['code_barres'] !== $article->code_barres
-        ) {
+            if (
+                isset($data['code_barres']) &&
+                $data['code_barres'] !== $article->code_barres
+            ) {
 
-            $existingArticle = Article::where(
-                'code_barres',
-                $data['code_barres']
-            )
-            ->where('id_article', '!=', $id)
-            ->where('etat', 'connu')
-            ->first();
+                $existingArticle = Article::where(
+                    'code_barres',
+                    $data['code_barres']
+                )
+                    ->where('id_article', '!=', $id)
+                    ->where('etat', 'connu')
+                    ->first();
 
-            if ($existingArticle) {
-                throw new \Exception(
-                    'Un article connu avec ce code-barres existe déjà.',
-                    409
-                );
-            }
-        }
-
-        $articleData = array_intersect_key(
-            $data,
-            array_flip(['code_barres', 'nom', 'prix'])
-        );
-
-        $this->repository->update($article, $articleData);
-
-        if (isset($data['categories'])) {
-            $this->repository->syncCategories($article, $data['categories']);
-        }
-
-        if (!empty($data['entrepots'])) {
-
-            $syncData = [];
-            $total = 0;
-
-            foreach ($data['entrepots'] as $ent) {
-
-                if (isset($ent['id_entrepot'])) {
-
-                    $qte = $ent['quantite']
-                        ?? ($ent['quantite_theorique'] ?? 0);
-
-                    $syncData[$ent['id_entrepot']] = [
-                        'quantite' => $qte
-                    ];
-
-                    $total += $qte;
+                if ($existingArticle) {
+                    throw new \Exception(
+                        'Un article connu avec ce code-barres existe déjà.',
+                        409
+                    );
                 }
             }
 
-            $article->quantite_total = $total;
-            $article->save();
-
-            $this->repository->syncEntrepots(
-                $article,
-                $syncData
+            $articleData = array_intersect_key(
+                $data,
+                array_flip(['code_barres', 'nom', 'prix'])
             );
 
-        } else {
+            $this->repository->update($article, $articleData);
 
-            if (isset($data['quantite_total'])) {
-
-                $article->quantite_total =
-                    $data['quantite_total'];
-
-                $article->save();
+            if (isset($data['categories'])) {
+                $this->repository->syncCategories($article, $data['categories']);
             }
 
-            $this->repository->syncEntrepots(
-                $article,
-                []
-            );
-        }
+            if (!empty($data['entrepots'])) {
 
-        return $article->load([
-            'categories',
-            'entrepots'
-        ]);
-    });
-}
+                $syncData = [];
+                $total = 0;
+
+                foreach ($data['entrepots'] as $ent) {
+
+                    if (isset($ent['id_entrepot'])) {
+
+                        $qte = $ent['quantite']
+                            ?? ($ent['quantite_theorique'] ?? 0);
+
+                        $syncData[$ent['id_entrepot']] = [
+                            'quantite' => $qte
+                        ];
+
+                        $total += $qte;
+                    }
+                }
+
+                $article->quantite_total = $total;
+                $article->save();
+
+                $this->repository->syncEntrepots(
+                    $article,
+                    $syncData
+                );
+
+            } else {
+
+                if (isset($data['quantite_total'])) {
+
+                    $article->quantite_total =
+                        $data['quantite_total'];
+
+                    $article->save();
+                }
+
+                $this->repository->syncEntrepots(
+                    $article,
+                    []
+                );
+            }
+
+            return $article->load([
+                'categories',
+                'entrepots'
+            ]);
+        });
+    }
 
     public function deleteArticle($id)
     {
@@ -219,92 +219,89 @@ if (!empty($data['entrepots'])){
         return $this->repository->deleteByIds($ids);
     }
 
-   public function importArticles(array $articlesData)
-{
-    return DB::transaction(function () use ($articlesData) {
+    public function importArticles(array $articlesData)
+    {
+        return DB::transaction(function () use ($articlesData) {
 
-        // Step 1: Group by barcode
-        $grouped = [];
+            // Step 1: Group by barcode
+            $grouped = [];
 
-        foreach ($articlesData as $data) {
-            $barcode = $data['code_barres'];
+            foreach ($articlesData as $data) {
+                $barcode = $data['code_barres'];
 
-            if (!isset($grouped[$barcode])) {
-                $grouped[$barcode] = [
-                    'code_barres' => $barcode,
-                    'nom' => $data['nom'] ?? null,
-                    'prix' => $data['prix'] ?? null,
-                    'categories' => $data['categories'] ?? null,
-                    'entrepots' => [],
-                    'quantite_total' => 0,
-                ];
+                if (!isset($grouped[$barcode])) {
+                    $grouped[$barcode] = [
+                        'code_barres' => $barcode,
+                        'nom' => $data['nom'] ?? null,
+                        'prix' => $data['prix'] ?? null,
+                        'categories' => $data['categories'] ?? null,
+                        'entrepots' => [],
+                        'quantite_total' => 0,
+                    ];
+                }
+
+                if (!empty($data['entrepots'])) {
+                    $entName = trim($data['entrepots']);
+                    $qty = (int) ($data['quantite_total'] ?? 0);
+
+                    $grouped[$barcode]['entrepots'][$entName] =
+                        ($grouped[$barcode]['entrepots'][$entName] ?? 0) + $qty;
+
+                } else {
+                    $grouped[$barcode]['quantite_total'] += (int) ($data['quantite_total'] ?? 0);
+                }
             }
 
-            if (!empty($data['entrepots'])) {
-                $entName = trim($data['entrepots']);
-                $qty = (int) ($data['quantite_total'] ?? 0);
+            $importedCount = 0;
 
-                $grouped[$barcode]['entrepots'][$entName] =
-                    ($grouped[$barcode]['entrepots'][$entName] ?? 0) + $qty;
+            foreach ($grouped as $data) {
 
-            } else {
-                $grouped[$barcode]['quantite_total'] += (int) ($data['quantite_total'] ?? 0);
-            }
-        }
+                // 🔥 ONLY CONNU ARTICLES
+                $article = $this->repository->findConnuByCodeBarres($data['code_barres']);
 
-        $importedCount = 0;
+                if (!$article) {
+                    $article = $this->repository->createConnu($data);
+                } else {
+                    $this->repository->updateBasicInfo($article, $data);
+                }
 
-        foreach ($grouped as $data) {
+                // Categories
+                if (!empty($data['categories'])) {
+                    $categoryIds = $this->repository->resolveCategories($data['categories']);
 
-            // 🔥 ONLY CONNU ARTICLES
-            $article = $this->repository
-                ->findConnuByCodeBarres($data['code_barres']);
+                    $this->repository->syncCategories($article, $categoryIds);
+                }
 
-            if (!$article) {
-                $article = $this->repository->createConnu($data);
-            } else {
-                $this->repository->updateBasicInfo($article, $data);
-            }
+                // Entrepots
+                $syncData = [];
+                $total = 0;
 
-            // Categories
-            if (!empty($data['categories'])) {
-                $categoryIds = $this->repository
-                    ->resolveCategories($data['categories']);
+                foreach ($data['entrepots'] as $name => $qty) {
+                    $entrepot = $this->repository->findOrCreateEntrepot($name);
 
-                $this->repository->syncCategories($article, $categoryIds);
-            }
+                    $syncData[$entrepot->id_entrepot] = [
+                        'quantite' => $qty
+                    ];
 
-            // Entrepots
-            $syncData = [];
-            $total = 0;
+                    $total += $qty;
+                }
 
-            foreach ($data['entrepots'] as $name => $qty) {
-                $entrepot = $this->repository->findOrCreateEntrepot($name);
+                $this->repository->syncEntrepots($article, $syncData);
 
-                $syncData[$entrepot->id_entrepot] = [
-                    'quantite' => $qty
-                ];
+                if (!empty($data['entrepots'])) {
+                    $article->quantite_total = $total;
+                } else {
+                    $article->quantite_total = $data['quantite_total'];
+                }
 
-                $total += $qty;
-            }
+                $article->save();
 
-            $this->repository->syncEntrepots($article, $syncData);
-
-            if (!empty($data['entrepots'])) {
-                $article->quantite_total = $total;
-            } else {
-                $article->quantite_total = $data['quantite_total'];
+                $importedCount++;
             }
 
-            $article->save();
-
-            $importedCount++;
-        }
-
-        return $importedCount;
-    });
-}
-
+            return $importedCount;
+        });
+    }
 
     public function attachCategoriesToArticles(array $ids, array $categoryIds)
     {
@@ -332,3 +329,4 @@ if (!empty($data['entrepots'])){
         });
     }
 }
+?>

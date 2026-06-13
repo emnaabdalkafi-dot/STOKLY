@@ -516,7 +516,7 @@ class _ScanPageState extends State<ScanPage> with SingleTickerProviderStateMixin
                     nom,
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textMain,
+                      color: AppColors.textMuted,
                       fontSize: 14,
                     ),
                     textAlign: TextAlign.center,

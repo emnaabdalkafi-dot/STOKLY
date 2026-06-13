@@ -1,0 +1,10 @@
+# Deploy as a SECOND Railway service (same repo, /backend root).
+# Set env vars: REVERB_APP_*, BROADCAST_CONNECTION=reverb, REDIS_* if needed.
+# Then set Frontend VITE_REVERB_HOST to this service's public Railway URL.
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "php artisan reverb:start --host=0.0.0.0 --port=$PORT"
+restartPolicyType = "ON_FAILURE"
