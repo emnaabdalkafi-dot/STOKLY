@@ -256,7 +256,7 @@ class ArticleService
 
             foreach ($grouped as $data) {
 
-                // 🔥 ONLY CONNU ARTICLES
+               
                 $article = $this->repository->findConnuByCodeBarres($data['code_barres']);
 
                 if (!$article) {

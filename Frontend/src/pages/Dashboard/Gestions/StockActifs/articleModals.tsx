@@ -179,11 +179,11 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
           <h3 >Nouveau article</h3>
           <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-       
+
         <form onSubmit={handleSubmit} className={`${styles.detailsForm} ${styles.modalContent}`}>
           <div className={styles.detailsGrid}>
             <label>
-              Code-barres 
+              Code-barres
               <div className={styles.InputGroup}>
                 <i className="bi bi-qr-code-scan" />
                 <input placeholder="EX: 12345678" value={form.code_barres} onChange={e => setForm({ ...form, code_barres: e.target.value })} required />
@@ -220,7 +220,7 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
           <div >
             <p className={styles.sectionTitle}>Catégories</p>
             <div className={styles.scrollList}>
-             {categories.length > 0 ? categories.map(c => (
+              {categories.length > 0 ? categories.map(c => (
                 <label key={c.id_category} className={styles.scrollListItem} title={c.nom}>
                   <input
                     type="checkbox"
@@ -264,9 +264,9 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
             {qteMode === 'totale' ? (
               <div>
                 <label >
-                  Quantité Totale 
+                  Quantité Totale
                 </label>
-                <div className={styles.InputGroup}style={{ flex: 1 }}>
+                <div className={styles.InputGroup} style={{ flex: 1 }}>
                   <i className="bi bi-calculator" />
                   <input type="number" min={0} value={form.quantite_total} onChange={e => setForm({ ...form, quantite_total: parseInt(e.target.value) || 0 })} placeholder="0" required />
                 </div>
@@ -309,8 +309,8 @@ export const ArticleFormModal: React.FC<ArticleModalProps> = ({
               )
             )}
           </div>
-          <button type="submit" className={styles.Submit}  disabled={loading}>
-            {loading ? <span className={layoutStyles.loadingDots}>Traitement</span>: (selectedArticle ? 'Mettre à jour' : 'Créer l\'article')}
+          <button type="submit" className={styles.Submit} disabled={loading}>
+            {loading ? <span className={layoutStyles.loadingDots}>Traitement</span> : (selectedArticle ? 'Mettre à jour' : 'Créer l\'article')}
           </button>
         </form>
       </div>
@@ -365,34 +365,35 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
       setEditSections({ info: false, categories: false, stock: false });
     }
   }, [article, isOpen]);
-  if (!isOpen || !article || !form) return null;
- const handleSave = async () => {
-  try {
-    setFieldErrors({});
+  const handleSave = async () => {
+    try {
+      setFieldErrors({});
 
-    await onUpdate(form);
+      await onUpdate(form);
 
-    setEditSections({
-      info: false,
-      categories: false,
-      stock: false
-    });
+      setEditSections({
+        info: false,
+        categories: false,
+        stock: false
+      });
 
-  } catch (err: any) {
+    } catch (err: any) {
 
-    if (err.response?.data?.errors) {
-      setFieldErrors(err.response.data.errors);
-    } else {
-      alert(
-        err.response?.data?.message ||
-        "Une erreur s'est produite lors de la modification."
-      );
+      if (err.response?.data?.errors) {
+        setFieldErrors(err.response.data.errors);
+      } else {
+        alert(
+          err.response?.data?.message ||
+          "Une erreur s'est produite lors de la modification."
+        );
+      }
+
+      console.error(err);
     }
-
-    console.error(err);
-  }
-};
+  };
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  if (!isOpen || !article || !form) return null;
+
   return (
     <div className={styles.modalOverlay}>
       <div className={`${styles.modalPanel} ${styles.modalContentWide}`}>
@@ -402,271 +403,271 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
               <span>Détails de </span> {article.nom}
             </h3>
           </div>
-          
+
           {article.etat === 'inconnu' && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                className={styles.validerBtn} 
+              <button
+                className={styles.validerBtn}
                 onClick={onAccept}
               >
-                <i className="bi bi-check-circle"  />
+                <i className="bi bi-check-circle" />
                 Marquer comme connu
               </button>
               {onReject && (
-                <button 
-                  className={styles.DeleteBtn} 
+                <button
+                  className={styles.DeleteBtn}
                   onClick={onReject}
                 >
-                  <i className="bi bi-x-circle"  />
+                  <i className="bi bi-x-circle" />
                   Rejeter
                 </button>
               )}
             </div>
           )}
-          
+
           <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-       
-        <div className={styles.modalContent}>
-        <div className={styles.detailsForm}>
-           {article.etat === 'inconnu' && (
-          <div className={styles.importInfoBox }>
-             <i className="bi bi-info-circle-fill" />
-             <div className={styles.importInfoText} >
-               Cet article a été scanné par un agent mais n'existe pas dans la base. Veuillez vérifier ses informations avant de le valider.
-             </div>
-          </div>
-        )}
-          <div className={styles.detailsContainer}>
-            <div className={styles.sectionHeader}>
-              <h4 className={styles.sectionTitle}>Informations de base :</h4>
-              {article.etat !== 'inconnu' && (
-                <button className={styles.editMiniBtn} onClick={() => {
-                  if (editSections.info) {
-                    const hasChanged = 
-                      form.code_barres !== (article.code_barres || '') ||
-                      form.nom !== (article.nom || '') ||
-                      form.prix !== (article.prix || 0);
-                    
-                    if (hasChanged) handleSave();
-                    else setEditSections({ ...editSections, info: false });
-                  } else {
-                    setEditSections({ ...editSections, info: true });
-                  }
-                }}>
-                  {editSections.info ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
-                </button>
-              )}
-            </div>
-            {!editSections.info ? (
-              <div className={styles.displayList}>
-                <div className={styles.displayItem}><strong>Code-barres:</strong> {article.code_barres}</div>
-                <div className={styles.displayItem}><strong>Nom:</strong> {article.nom}</div>
-                <div className={styles.displayItem} title={String(article.prix)}><strong>Prix:</strong> {formatCurrency(article.prix, currency, true)}</div>
-                <div className={styles.displayItem}><strong>État:</strong> {article.etat}</div>
-              </div>
-            ) : (
-              <div className={styles.detailsGrid}>
-                <div>
-                    <label>Code-barres</label>
-                    <div className={styles.InputGroup}>
-                        <input type="text" value={form.code_barres} onChange={e => setForm({ ...form, code_barres: e.target.value })} />
-                    </div>
-                     {fieldErrors.code_barres && (
-    <span className={styles.fieldError}>
-      {fieldErrors.code_barres[0]}
-    </span>
-  )}
-                </div>
-                <div>
-                    <label>Nom</label>
-                    <div className={styles.InputGroup}>
-                        <input type="text" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
-                    </div>
-                     {fieldErrors.nom && (
-    <span className={styles.fieldError}>
-      {fieldErrors.nom[0]}
-    </span>
-  )}
-                </div>
-                <div>
-                    <label>Prix ({currency})</label>
-                    <div className={styles.InputGroup}>
-                        <input type="number" step="0.001" value={form.prix} onChange={e => setForm({ ...form, prix: parseFloat(e.target.value) || 0 })} />
-                    </div>
-                     {fieldErrors.prix && (
-    <span className={styles.fieldError}>
-      {fieldErrors.prix[0]}
-    </span>
-  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className={styles.detailsContainer}>
-            <div className={styles.sectionHeader}>
-              <h4 className={styles.sectionTitle}>Catégories :</h4>
-              {article.etat !== 'inconnu' && (
-                <button className={styles.editMiniBtn} onClick={() => {
-                  if (editSections.categories) {
-                    const origCats = article.categories?.map(c => c.id_category) || [];
-                    const hasChanged = JSON.stringify(form.categories.sort()) !== JSON.stringify(origCats.sort());
-                    
-                    if (hasChanged) handleSave();
-                    else setEditSections({ ...editSections, categories: false });
-                  } else {
-                    setEditSections({ ...editSections, categories: true });
-                  }
-                }}>
-                  {editSections.categories ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
-                </button>
-              )}
-            </div>
-            {!editSections.categories ? (
-              <div className={styles.displayList}>
-                {article.categories?.length > 0 ? 
-                  article.categories.map(c => <div key={c.id_category} className={styles.displayItem}>{c.nom}</div>) :
-                  <p className={styles.emptyMsg}>Aucune catégorie</p>
-                }
-              </div>
-            ) : (
-              <div className={`${styles.list} ${styles.scrollList}`} >
-                {categories.map(c => (
-                  <label key={c.id_category}className={styles.scrollListItem}>
-                    <input type="checkbox" className={styles.checkbox} checked={form.categories.includes(c.id_category)} onChange={e => {
-                      if (e.target.checked) setForm({ ...form, categories: [...form.categories, c.id_category] });
-                      else setForm({ ...form, categories: form.categories.filter((id: number) => id !== c.id_category) });
-                    }} /> {c.nom}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className={styles.detailsContainer}>
-            <div className={styles.sectionHeader}>
-              <h4 className={styles.sectionTitle}>Stock & Emplacements :</h4>
-              {article.etat !== 'inconnu' && (
-                <button className={styles.editMiniBtn} onClick={() => {
-                  if (editSections.stock) {
-                    const origEntrepots = article.entrepots?.map(e => ({
-                      id_entrepot: e.id_entrepot,
-                      quantite: e.pivot?.quantite || 0
-                    })) || [];
-                    const sortedFormEnt = [...form.entrepots].sort((a, b) => a.id_entrepot - b.id_entrepot);
-                    const sortedOrigEnt = [...origEntrepots].sort((a, b) => a.id_entrepot - b.id_entrepot);
-                    
-                    const hasChanged = JSON.stringify(sortedFormEnt) !== JSON.stringify(sortedOrigEnt) || 
-                                       form.quantite_total !== (article.quantite_total || 0) ||
-                                       qteDetailsMode !== initialQteDetailsMode;
 
-                    if (hasChanged) handleSave();
-                    else setEditSections({ ...editSections, stock: false });
-                  } else {
-                    setEditSections({ ...editSections, stock: true });
-                  }
-                }}>
-                  {editSections.stock ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
-                </button>
-              )}
-            </div>
-            {!editSections.stock ? (
-              <div className={styles.displayList}>
-                <div className={styles.displayItem} title={String(article.quantite_total || 0)}><strong>Quantité Totale:</strong> {formatCompactNumber(article.quantite_total || 0)}</div>
-                {article.entrepots?.map(e => (
-                  <div key={e.id_entrepot} className={styles.displayItem} title={String(e.pivot?.quantite || 0)}>
-                    <strong>{e.nom}:</strong> {formatCompactNumber(e.pivot?.quantite || 0)}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.list}>
-                <div className={styles.radioGroup}>
-                  <label className={styles.scrollListItem}>
-                    <input type="radio" checked={qteDetailsMode === 'totale'} onChange={() => {
-                      setQteDetailsMode('totale');
-                      setForm((prev: any) => ({ ...prev, entrepots: [], quantite_total: prev.quantite_total ?? (article.quantite_total || 0) }));
-                    }} className={styles.checkbox} style={{ borderRadius: '50%' }} />
-                    Quantité Globale
-                  </label>
-                  <label className={styles.scrollListItem}>
-                    <input type="radio" checked={qteDetailsMode === 'entrepot'} onChange={() => {
-                      setQteDetailsMode('entrepot');
-                      setForm((prev: any) => ({ ...prev, entrepots: prev.entrepots && prev.entrepots.length ? prev.entrepots : (article.entrepots?.map((e:any) => ({ id_entrepot: e.id_entrepot, quantite: e.pivot?.quantite || 0 })) || []), quantite_total: prev.quantite_total ?? (article.quantite_total || 0) }));
-                    }} className={styles.checkbox} style={{ borderRadius: '50%' }} />
-                    Quantité par Entrepôt
-                  </label>
+        <div className={styles.modalContent}>
+          <div className={styles.detailsForm}>
+            {article.etat === 'inconnu' && (
+              <div className={styles.importInfoBox}>
+                <i className="bi bi-info-circle-fill" />
+                <div className={styles.importInfoText} >
+                  Cet article a été scanné par un agent mais n'existe pas dans la base. Veuillez vérifier ses informations avant de le valider.
                 </div>
-                {qteDetailsMode === 'totale' ? (
-                  <div>
-                    <label>Qté Totale</label>
-                    <div className={styles.InputGroup}>
-                        <input type="number" min={0} value={form.quantite_total} onChange={e => setForm({ ...form, quantite_total: parseInt(e.target.value) || 0, entrepots: [] })} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className={styles.scrollList} >
-                    {entrepots.map(en => {
-                      const selected = form.entrepots.find((e: any) => e.id_entrepot === en.id_entrepot);
-                      return (
-                        <div key={en.id_entrepot} className={styles.entrepotRow} style={{ marginBottom: '10px' }}>
-                          <label className={styles.scrollListItem}>
-                            <input
-                              type="checkbox"
-                              className={styles.checkbox}
-                              checked={!!selected}
-                              onChange={() => {
-                                if (selected) {
-                                  setForm({ ...form, entrepots: form.entrepots.filter((e: any) => e.id_entrepot !== en.id_entrepot) });
-                                } else {
-                                  setForm({ ...form, entrepots: [...form.entrepots, { id_entrepot: en.id_entrepot, quantite: 0 }] });
-                                }
-                              }}
-                            />
-                            {en.nom}
-                          </label>
-                          {selected && (
-                            <div className={styles.InputGroup} style={{ width: '100px', marginLeft: 'auto' }}>
-                              <input type="number" min={0} value={selected.quantite} 
-                                  onChange={e => {
-                                      const newEnts = form.entrepots.map((ent: any) => ent.id_entrepot === en.id_entrepot ? { ...ent, quantite: parseInt(e.target.value) || 0 } : ent);
-                                      setForm({ ...form, entrepots: newEnts });
-                                  }} 
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
+              </div>
+            )}
+            <div className={styles.detailsContainer}>
+              <div className={styles.sectionHeader}>
+                <h4 className={styles.sectionTitle}>Informations de base :</h4>
+                {article.etat !== 'inconnu' && (
+                  <button className={styles.editMiniBtn} onClick={() => {
+                    if (editSections.info) {
+                      const hasChanged =
+                        form.code_barres !== (article.code_barres || '') ||
+                        form.nom !== (article.nom || '') ||
+                        form.prix !== (article.prix || 0);
+
+                      if (hasChanged) handleSave();
+                      else setEditSections({ ...editSections, info: false });
+                    } else {
+                      setEditSections({ ...editSections, info: true });
+                    }
+                  }}>
+                    {editSections.info ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
+                  </button>
                 )}
               </div>
-            )}
-        
-        </div>
-          <div className={styles.detailsContainer}>
-            <h4 className={styles.sectionTitle}>Présence dans les inventaires :</h4>
-            <div className={styles.List}>
-              {article.lignes_inventaire && article.lignes_inventaire.length > 0 ? (
-                article.lignes_inventaire.map((l: any) => {
-                  const inv = l.inventaire;
-                  if (!inv) return null;
-                  const getStatusColor = (s: string) => {
-                    if (s === 'en cours') return '#22c55e';
-                    if (s === 'termine' || s === 'terminé') return '#ef4444';
-                    if (s === 'cloture' || s === 'cloturé') return '#ef4444';
-                    return '#f59e0b'; 
-                  };
-                  const ecartVal = l.ecart;
-                  const compteVal = l.quantite_comptee;
-                  
-                  return (
-                    <div key={l.id_ligne} className={styles.Item}>
+              {!editSections.info ? (
+                <div className={styles.displayList}>
+                  <div className={styles.displayItem}><strong>Code-barres:</strong> {article.code_barres}</div>
+                  <div className={styles.displayItem}><strong>Nom:</strong> {article.nom}</div>
+                  <div className={styles.displayItem} title={String(article.prix)}><strong>Prix:</strong> {formatCurrency(article.prix, currency, true)}</div>
+                  <div className={styles.displayItem}><strong>État:</strong> {article.etat}</div>
+                </div>
+              ) : (
+                <div className={styles.detailsGrid}>
+                  <div>
+                    <label>Code-barres</label>
+                    <div className={styles.InputGroup}>
+                      <input type="text" value={form.code_barres} onChange={e => setForm({ ...form, code_barres: e.target.value })} />
+                    </div>
+                    {fieldErrors.code_barres && (
+                      <span className={styles.fieldError}>
+                        {fieldErrors.code_barres[0]}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label>Nom</label>
+                    <div className={styles.InputGroup}>
+                      <input type="text" value={form.nom} onChange={e => setForm({ ...form, nom: e.target.value })} />
+                    </div>
+                    {fieldErrors.nom && (
+                      <span className={styles.fieldError}>
+                        {fieldErrors.nom[0]}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <label>Prix ({currency})</label>
+                    <div className={styles.InputGroup}>
+                      <input type="number" step="0.001" value={form.prix} onChange={e => setForm({ ...form, prix: parseFloat(e.target.value) || 0 })} />
+                    </div>
+                    {fieldErrors.prix && (
+                      <span className={styles.fieldError}>
+                        {fieldErrors.prix[0]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className={styles.detailsContainer}>
+              <div className={styles.sectionHeader}>
+                <h4 className={styles.sectionTitle}>Catégories :</h4>
+                {article.etat !== 'inconnu' && (
+                  <button className={styles.editMiniBtn} onClick={() => {
+                    if (editSections.categories) {
+                      const origCats = article.categories?.map(c => c.id_category) || [];
+                      const hasChanged = JSON.stringify(form.categories.sort()) !== JSON.stringify(origCats.sort());
+
+                      if (hasChanged) handleSave();
+                      else setEditSections({ ...editSections, categories: false });
+                    } else {
+                      setEditSections({ ...editSections, categories: true });
+                    }
+                  }}>
+                    {editSections.categories ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
+                  </button>
+                )}
+              </div>
+              {!editSections.categories ? (
+                <div className={styles.displayList}>
+                  {article.categories?.length > 0 ?
+                    article.categories.map(c => <div key={c.id_category} className={styles.displayItem}>{c.nom}</div>) :
+                    <p className={styles.emptyMsg}>Aucune catégorie</p>
+                  }
+                </div>
+              ) : (
+                <div className={`${styles.list} ${styles.scrollList}`} >
+                  {categories.map(c => (
+                    <label key={c.id_category} className={styles.scrollListItem}>
+                      <input type="checkbox" className={styles.checkbox} checked={form.categories.includes(c.id_category)} onChange={e => {
+                        if (e.target.checked) setForm({ ...form, categories: [...form.categories, c.id_category] });
+                        else setForm({ ...form, categories: form.categories.filter((id: number) => id !== c.id_category) });
+                      }} /> {c.nom}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className={styles.detailsContainer}>
+              <div className={styles.sectionHeader}>
+                <h4 className={styles.sectionTitle}>Stock & Emplacements :</h4>
+                {article.etat !== 'inconnu' && (
+                  <button className={styles.editMiniBtn} onClick={() => {
+                    if (editSections.stock) {
+                      const origEntrepots = article.entrepots?.map(e => ({
+                        id_entrepot: e.id_entrepot,
+                        quantite: e.pivot?.quantite || 0
+                      })) || [];
+                      const sortedFormEnt = [...form.entrepots].sort((a, b) => a.id_entrepot - b.id_entrepot);
+                      const sortedOrigEnt = [...origEntrepots].sort((a, b) => a.id_entrepot - b.id_entrepot);
+
+                      const hasChanged = JSON.stringify(sortedFormEnt) !== JSON.stringify(sortedOrigEnt) ||
+                        form.quantite_total !== (article.quantite_total || 0) ||
+                        qteDetailsMode !== initialQteDetailsMode;
+
+                      if (hasChanged) handleSave();
+                      else setEditSections({ ...editSections, stock: false });
+                    } else {
+                      setEditSections({ ...editSections, stock: true });
+                    }
+                  }}>
+                    {editSections.stock ? <i className="bi bi-check-lg" /> : <i className="bi bi-pencil" />}
+                  </button>
+                )}
+              </div>
+              {!editSections.stock ? (
+                <div className={styles.displayList}>
+                  <div className={styles.displayItem} title={String(article.quantite_total || 0)}><strong>Quantité Totale:</strong> {formatCompactNumber(article.quantite_total || 0)}</div>
+                  {article.entrepots?.map(e => (
+                    <div key={e.id_entrepot} className={styles.displayItem} title={String(e.pivot?.quantite || 0)}>
+                      <strong>{e.nom}:</strong> {formatCompactNumber(e.pivot?.quantite || 0)}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className={styles.list}>
+                  <div className={styles.radioGroup}>
+                    <label className={styles.scrollListItem}>
+                      <input type="radio" checked={qteDetailsMode === 'totale'} onChange={() => {
+                        setQteDetailsMode('totale');
+                        setForm((prev: any) => ({ ...prev, entrepots: [], quantite_total: prev.quantite_total ?? (article.quantite_total || 0) }));
+                      }} className={styles.checkbox} style={{ borderRadius: '50%' }} />
+                      Quantité Globale
+                    </label>
+                    <label className={styles.scrollListItem}>
+                      <input type="radio" checked={qteDetailsMode === 'entrepot'} onChange={() => {
+                        setQteDetailsMode('entrepot');
+                        setForm((prev: any) => ({ ...prev, entrepots: prev.entrepots && prev.entrepots.length ? prev.entrepots : (article.entrepots?.map((e: any) => ({ id_entrepot: e.id_entrepot, quantite: e.pivot?.quantite || 0 })) || []), quantite_total: prev.quantite_total ?? (article.quantite_total || 0) }));
+                      }} className={styles.checkbox} style={{ borderRadius: '50%' }} />
+                      Quantité par Entrepôt
+                    </label>
+                  </div>
+                  {qteDetailsMode === 'totale' ? (
+                    <div>
+                      <label>Qté Totale</label>
+                      <div className={styles.InputGroup}>
+                        <input type="number" min={0} value={form.quantite_total} onChange={e => setForm({ ...form, quantite_total: parseInt(e.target.value) || 0, entrepots: [] })} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={styles.scrollList} >
+                      {entrepots.map(en => {
+                        const selected = form.entrepots.find((e: any) => e.id_entrepot === en.id_entrepot);
+                        return (
+                          <div key={en.id_entrepot} className={styles.entrepotRow} style={{ marginBottom: '10px' }}>
+                            <label className={styles.scrollListItem}>
+                              <input
+                                type="checkbox"
+                                className={styles.checkbox}
+                                checked={!!selected}
+                                onChange={() => {
+                                  if (selected) {
+                                    setForm({ ...form, entrepots: form.entrepots.filter((e: any) => e.id_entrepot !== en.id_entrepot) });
+                                  } else {
+                                    setForm({ ...form, entrepots: [...form.entrepots, { id_entrepot: en.id_entrepot, quantite: 0 }] });
+                                  }
+                                }}
+                              />
+                              {en.nom}
+                            </label>
+                            {selected && (
+                              <div className={styles.InputGroup} style={{ width: '100px', marginLeft: 'auto' }}>
+                                <input type="number" min={0} value={selected.quantite}
+                                  onChange={e => {
+                                    const newEnts = form.entrepots.map((ent: any) => ent.id_entrepot === en.id_entrepot ? { ...ent, quantite: parseInt(e.target.value) || 0 } : ent);
+                                    setForm({ ...form, entrepots: newEnts });
+                                  }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+            <div className={styles.detailsContainer}>
+              <h4 className={styles.sectionTitle}>Présence dans les inventaires :</h4>
+              <div className={styles.List}>
+                {article.lignes_inventaire && article.lignes_inventaire.length > 0 ? (
+                  article.lignes_inventaire.map((l: any) => {
+                    const inv = l.inventaire;
+                    if (!inv) return null;
+                    const getStatusColor = (s: string) => {
+                      if (s === 'en cours') return '#22c55e';
+                      if (s === 'termine' || s === 'terminé') return '#ef4444';
+                      if (s === 'cloture' || s === 'cloturé') return '#ef4444';
+                      return '#f59e0b';
+                    };
+                    const ecartVal = l.ecart;
+                    const compteVal = l.quantite_comptee;
+
+                    return (
+                      <div key={l.id_ligne} className={styles.Item}>
                         <div >
-                        <span className={styles.statusDot} style={{ backgroundColor: getStatusColor(inv.statut), width: '8px', height: '8px' }} />
-                        <strong>{inv.titre || inv.site} </strong>
-                        <span style={{ fontSize: '0.65rem', color: '#666' }}> ({inv.type_source})</span>
+                          <span className={styles.statusDot} style={{ backgroundColor: getStatusColor(inv.statut), width: '8px', height: '8px' }} />
+                          <strong>{inv.titre || inv.site} </strong>
+                          <span style={{ fontSize: '0.65rem', color: '#666' }}> ({inv.type_source})</span>
                         </div>
-                       
+
                         <span >Écart: {compteVal === 0 ? (
                           <span style={{ color: '#888' }}>Non calculé</span>
                         ) : (
@@ -674,18 +675,18 @@ export const ArticleDetailsModal: React.FC<ArticleDetailsModalProps> = ({
                             {formatCompactNumber(ecartVal > 0 ? `+${ecartVal}` : ecartVal)}
                           </span>
                         )}</span>
-                      
-                    </div>
-                  );
-                })
-              ) : (
-                <p className={styles.emptyMsg}>Aucun inventaire lié</p>
-              )}
+
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className={styles.emptyMsg}>Aucun inventaire lié</p>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };
@@ -711,12 +712,12 @@ export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
   const [editingItem, setEditingItem] = useState<any>(null);
   const [name, setName] = useState('');
   const [extra, setExtra] = useState('');
-    const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState(false);
   useEffect(() => {
     if (isOpen) {
-        setName('');
-        setExtra('');
-        setEditingItem(null);
+      setName('');
+      setExtra('');
+      setEditingItem(null);
     }
   }, [isOpen]);
   if (!isOpen) return null;
@@ -742,7 +743,7 @@ export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
   const handleEditClick = (item: any) => {
     setEditingItem(item);
     setName(item.nom);
-    setExtra(type === 'categories' ? item.description|| '' : item.location|| '');
+    setExtra(type === 'categories' ? item.description || '' : item.location || '');
   };
   const handleDelete = async (item: any) => {
     const id = item.id_category || item.id_entrepot;
@@ -783,20 +784,20 @@ export const ManageSettingsModal: React.FC<ManageSettingsModalProps> = ({
         </div>
         <div className={styles.InputGroup}>
           <i className="bi bi-plus-circle" />
-            <input
-                placeholder={`Nom du nouveau ${type === 'categories' ? 'catégorie' : 'entrepôt'}...`}
-                value={name}
-                onChange={e => setName(e.target.value)}
-            />
-            <input
-                placeholder={type === 'categories' ? 'Description...' : 'Localisation...'}
-                value={extra}
-                onChange={e => setExtra(e.target.value)}
-                
-            />
-              <button className={styles.inlineAddBtn} onClick={handleSave} disabled={saving}>
-                {saving ? <span className={layoutStyles.loadingDots}>Traitement</span>: (editingItem ? 'Modifier' : 'Ajouter')}
-              </button>
+          <input
+            placeholder={`Nom du nouveau ${type === 'categories' ? 'catégorie' : 'entrepôt'}...`}
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+          <input
+            placeholder={type === 'categories' ? 'Description...' : 'Localisation...'}
+            value={extra}
+            onChange={e => setExtra(e.target.value)}
+
+          />
+          <button className={styles.inlineAddBtn} onClick={handleSave} disabled={saving}>
+            {saving ? <span className={layoutStyles.loadingDots}>Traitement</span> : (editingItem ? 'Modifier' : 'Ajouter')}
+          </button>
         </div>
         <div className={`${styles.list} ${styles.scrollList} ${styles.bgTransparent}`}>
           {items.map(item => (
@@ -882,35 +883,35 @@ export const ImportExcelWizard: React.FC<ImportProps> = ({
           <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
         <div className={styles.modalContent}>
-        
-        {generalError && <div className={styles.authAlert} >{generalError}</div>}
-        <div className={styles.detailsForm}>
-          {fields.map(field => (
-            <div key={field.id} className={styles.importFieldRow}>
-              <div className={styles.importFieldLabel}>
-                <i className={`bi ${field.icon} ${styles.colorGold}`} />
-                <span>{field.label} {field.required && <span className={styles.requiredStar}>*</span>}</span>
+
+          {generalError && <div className={styles.authAlert} >{generalError}</div>}
+          <div className={styles.detailsForm}>
+            {fields.map(field => (
+              <div key={field.id} className={styles.importFieldRow}>
+                <div className={styles.importFieldLabel}>
+                  <i className={`bi ${field.icon} ${styles.colorGold}`} />
+                  <span>{field.label} {field.required && <span className={styles.requiredStar}>*</span>}</span>
+                </div>
+                <div className={`${styles.InputGroup} ${styles.flex1}`}>
+                  <select className={styles.selectInputGhost} value={mapping[field.id]} onChange={e => setMapping({ ...mapping, [field.id]: e.target.value })}>
+                    <option value="">-- Choisir colonne --</option>
+                    {headers.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
               </div>
-              <div className={`${styles.InputGroup} ${styles.flex1}`}>
-                <select className={styles.selectInputGhost} value={mapping[field.id]} onChange={e => setMapping({ ...mapping, [field.id]: e.target.value })}>
-                  <option value="">-- Choisir colonne --</option>
-                  {headers.map(h => <option key={h} value={h}>{h}</option>)}
-                </select>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <div className={styles.importInfoBox}>
+            <i className={`bi bi-info-circle-fill ${styles.colorGold}`} />
+            <p className={styles.importInfoText}>
+              Si "Entrepôts" n'est pas mappé, la quantité sera affectée directement au stock global. Si "Entrepôts" est mappé, les quantités seront affectées à l'entrepôt correspondant.<br />
+              Les catégories et entrepôts inexistants seront créés automatiquement.
+            </p>
+          </div>
+          <button className={styles.Submit} onClick={handleImport} disabled={importLoading}>
+            <i className="bi bi-check-all" /> {importLoading ? <span className={layoutStyles.loadingDots}>Traitement</span> : `Finaliser l'importation (${data.length} articles)`}
+          </button>
         </div>
-        <div className={styles.importInfoBox}>
-          <i className={`bi bi-info-circle-fill ${styles.colorGold}`} />
-          <p className={styles.importInfoText}>
-            Si "Entrepôts" n'est pas mappé, la quantité sera affectée directement au stock global. Si "Entrepôts" est mappé, les quantités seront affectées à l'entrepôt correspondant.<br />
-            Les catégories et entrepôts inexistants seront créés automatiquement.
-          </p>
-        </div>
-        <button className={styles.Submit} onClick={handleImport} disabled={importLoading}>
-          <i className="bi bi-check-all" /> {importLoading ?<span className={layoutStyles.loadingDots}>Traitement</span> : `Finaliser l'importation (${data.length} articles)`}
-        </button>
-      </div>
       </div>
     </div>
   );
@@ -961,21 +962,21 @@ export const BulkAddCategoryModal: React.FC<BulkCategoryModalProps> = ({
             </label>
           ))}
         </div>
-       <button
-  className={styles.Submit}
-  onClick={async () => {
-    setLoading(true);
-    try {
-      await onConfirm(selectedCats);
-    } finally {
-      setLoading(false);
-      onClose();
-    }
-  }}
-  disabled={loading || selectedCats.length === 0}
->
-  {loading ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Confirmer'}
-</button>
+        <button
+          className={styles.Submit}
+          onClick={async () => {
+            setLoading(true);
+            try {
+              await onConfirm(selectedCats);
+            } finally {
+              setLoading(false);
+              onClose();
+            }
+          }}
+          disabled={loading || selectedCats.length === 0}
+        >
+          {loading ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Confirmer'}
+        </button>
       </div>
     </div>
   );
@@ -1032,20 +1033,20 @@ export const BulkAddEntrepotModal: React.FC<BulkEntrepotModalProps> = ({
           })}
         </div>
         <button
-  className={styles.Submit}
-  onClick={async () => {
-    setLoading(true);
-    try {
-      await onConfirm(selected);
-    } finally {
-      setLoading(false);
-      onClose();
-    }
-  }}
-  disabled={loading || selected.length === 0}
->
-  {loading ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Confirmer'}
-</button>
+          className={styles.Submit}
+          onClick={async () => {
+            setLoading(true);
+            try {
+              await onConfirm(selected);
+            } finally {
+              setLoading(false);
+              onClose();
+            }
+          }}
+          disabled={loading || selected.length === 0}
+        >
+          {loading ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Confirmer'}
+        </button>
       </div>
     </div>
   );
@@ -1082,7 +1083,7 @@ export const ExportChoiceModal: React.FC<ExportChoiceModalProps> = ({
           Sélectionnez le format dans lequel vous souhaitez exporter le stock actif (<strong>{filteredArticlesCount}</strong> article{filteredArticlesCount > 1 ? 's' : ''}).
         </p>
         <div className={styles.ScrollList}>
-          <button 
+          <button
             className={styles.Submit} style={{ backgroundColor: '#107c10' }}
             onClick={async () => {
               setExporting(s => ({ ...s, excel: true }));
@@ -1094,13 +1095,13 @@ export const ExportChoiceModal: React.FC<ExportChoiceModalProps> = ({
               }
             }}
             disabled={exporting.excel}
-         
+
           >
-            <i className="bi bi-file-earmark-excel-fill"  />
-            {exporting.excel ? <span className={layoutStyles.loadingDots}>Traitement</span>: 'Exporter en Excel (.xlsx)'}
+            <i className="bi bi-file-earmark-excel-fill" />
+            {exporting.excel ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Exporter en Excel (.xlsx)'}
           </button>
-          <button 
-            className={styles.Submit} 
+          <button
+            className={styles.Submit}
             onClick={async () => {
               setExporting(s => ({ ...s, csv: true }));
               try {
@@ -1110,11 +1111,11 @@ export const ExportChoiceModal: React.FC<ExportChoiceModalProps> = ({
                 onClose();
               }
             }}
-            disabled={exporting.csv}         
-           
+            disabled={exporting.csv}
+
           >
-            <i className="bi bi-filetype-csv"  />
-            {exporting.csv ? <span className={layoutStyles.loadingDots}>Traitement</span>: 'Exporter en CSV (.csv)'}
+            <i className="bi bi-filetype-csv" />
+            {exporting.csv ? <span className={layoutStyles.loadingDots}>Traitement</span> : 'Exporter en CSV (.csv)'}
           </button>
         </div>
       </div>
