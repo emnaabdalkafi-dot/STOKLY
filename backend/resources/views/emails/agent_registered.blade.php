@@ -1,5 +1,5 @@
 <x-mail::message>
-# Bienvenue chez Stokly !
+# Bienvenue chez Stockly !
 
 Bonjour **{{ $agent->nom }} {{ $agent->prenom }}**,
 

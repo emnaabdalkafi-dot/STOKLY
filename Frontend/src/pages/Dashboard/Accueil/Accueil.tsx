@@ -320,7 +320,7 @@ const Accueil: React.FC = () => {
                         {selectedInventory === 'all' && (
                           <td>{ecartItem.inventaire}</td>
                         )}
-                        <td style={{ color: ecartItem.ecart_positif ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{ecartItem.ecart_positif ? `+${ecartItem.ecart_positif}` : `-${ecartItem.ecart_negatif}`}</td>
+                        <td style={{ color: ecartItem.ecart_positif ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{ecartItem.ecart_positif ? `+${ecartItem.ecart_positif}` : `${ecartItem.ecart_negatif}`}</td>
                       </tr>
                     ))}
                     {ecartsList.length === 0 && (

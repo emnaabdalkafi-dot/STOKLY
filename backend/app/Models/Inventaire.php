@@ -23,6 +23,7 @@ class Inventaire extends Model
         'type_source',
         'id_entrepot',
         'remarque',
+        'fichier_path',
     ];
 public function affectations()
 {

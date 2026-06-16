@@ -948,10 +948,9 @@ export const BulkAddCategoryModal: React.FC<BulkCategoryModalProps> = ({
           <h3 className={styles.modalTitle}>Ajouter à catégorie</h3>
           <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-        <p className={styles.marginB1}>{selectedIds.length} articles sélectionnés</p>
-        <div className={`${styles.list} ${styles.scrollList} ${styles.marginB1}`}>
+        <div className={`${styles.list} ${styles.scrollList}`}>
           {categories.map((c: any) => (
-            <label key={c.id_category} className={styles.checkboxLabel}>
+            <label key={c.id_category} className={styles.scrollListItem} style={{ display: "flex"}}>
               <input
                 type="checkbox"
                 className={styles.checkbox}
@@ -1013,13 +1012,12 @@ export const BulkAddEntrepotModal: React.FC<BulkEntrepotModalProps> = ({
           <h3 className={styles.modalTitle}>Ajouter à entrepôt</h3>
           <button className={styles.closeButton} onClick={onClose}><i className="bi bi-x-lg" /></button>
         </div>
-        <p className={styles.marginB1}>{selectedIds.length} articles sélectionnés</p>
-        <div className={`${styles.list} ${styles.scrollList} ${styles.marginB1}`}>
+        <div className={`${styles.list} ${styles.scrollList}`}>
           {entrepots.map((e: any) => {
             const selectedEntry = selected.find(s => s.id_entrepot === e.id_entrepot);
             return (
-              <div key={e.id_entrepot} className={styles.entrepotRow}>
-                <label className={styles.checkboxLabel}>
+              <div key={e.id_entrepot}>
+                <label style={{ display: "flex"}} className={styles.scrollListItem}>
                   <input
                     type="checkbox"
                     className={styles.checkbox}

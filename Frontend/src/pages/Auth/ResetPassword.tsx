@@ -59,11 +59,11 @@ const ResetPassword = () => {
     }
 
     return (
-        <div className={styles.authPage} style={{display:'block'}}>
+        <div className={styles.authPage} style={{ display: 'block' }}>
             <div className={styles.resetForm}>
                 <div className={styles.authBrand}>
-                    <img src={logoImage} alt="STOKLY logo" className={styles.authLogoImage} />
-                    <img src={logoText} alt="STOKLY" className={styles.authLogoText} />
+                    <img src={logoImage} alt="Stockly logo" className={styles.authLogoImage} />
+                    <img src={logoText} alt="Stockly" className={styles.authLogoText} />
                     <p>Définissez votre nouveau mot de passe.</p>
                 </div>
 
@@ -119,7 +119,7 @@ const ResetPassword = () => {
                     </label>
 
                     <button type="submit" className={styles.authSubmit} disabled={loading}>
-                        {loading ?  <span className={styles.loading} >Réinitialisation </span>  : 'Changer le mot de passe'}
+                        {loading ? <span className={styles.loading} >Réinitialisation </span> : 'Changer le mot de passe'}
                     </button>
                 </form>
             </div>

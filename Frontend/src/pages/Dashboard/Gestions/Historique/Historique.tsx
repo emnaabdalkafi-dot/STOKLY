@@ -169,21 +169,13 @@ const Historique: React.FC = () => {
                         </span>
                       </div>
                     </td>
-                    <td className={styles.tableActions}>
+                    <td >
                         <button 
                           className={styles.ActionButton}
                           onClick={() => { setSelectedItem(inv); setModalType('historique'); }}
                         >
                           Détails
                         </button>
-                        {inv.fichier_path && (
-                          <button 
-                            className={styles.ActionButton}
-                            onClick={() => window.open(`${BACKEND_URL}${inv.fichier_path}`, '_blank')}                          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                          >
-                            <i className="bi bi-file-earmark-pdf-fill" style={{ color: '#ef4444'}} /> Rapport PDF
-                          </button>
-                        )}
                     </td>
                   </tr>
                 )})}

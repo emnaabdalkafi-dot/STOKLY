@@ -113,8 +113,8 @@ const Auth: React.FC = () => {
         <div className={`${styles.authFormPanel} ${isLogin ? styles.active : styles.inactive}`} >
           <form onSubmit={handleLoginSubmit} className={styles.authForm}>
             <div className={styles.authBrand}>
-              <img src={logoImage} alt="STOKLY logo" className={styles.authLogoImage} />
-              <img src={logoText} alt="STOKLY" className={styles.authLogoText} />
+              <img src={logoImage} alt="Stockly logo" className={styles.authLogoImage} />
+              <img src={logoText} alt="Stockly" className={styles.authLogoText} />
             </div>
             {loginError && <div className={styles.authAlert}>{loginError}</div>}
             <div>
@@ -165,8 +165,8 @@ const Auth: React.FC = () => {
         <div className={`${styles.authFormPanel} ${isLogin ? styles.inactive : styles.active}`} >
           <form onSubmit={handleRegisterSubmit} className={styles.authForm}>
             <div className={styles.authBrand}>
-              <img src={logoImage} alt="STOKLY logo" className={styles.authLogoImage} />
-              <img src={logoText} alt="STOKLY" className={styles.authLogoText} />
+              <img src={logoImage} alt="Stockly logo" className={styles.authLogoImage} />
+              <img src={logoText} alt="Stockly" className={styles.authLogoText} />
             </div>
             {registerMessage && <div className={styles.authAlert}>{registerMessage}</div>}
             <div >

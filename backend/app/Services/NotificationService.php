@@ -18,11 +18,12 @@ class NotificationService
         $notifications = $this->repository->getForUser($user);
 
         $notifications->transform(function ($notif) {
-            $notif->contenu_decoded = [
+            $notif->setAttribute('contenu_decoded', [
                 'message' => $notif->contenu,
                 'inventaire_id' => $notif->id_inventaire,
+                'inventaire_titre' => $notif->inventaire ? $notif->inventaire->titre : null,
                 'article_id' => $notif->id_article,
-            ];
+            ]);
             return $notif;
         });
 

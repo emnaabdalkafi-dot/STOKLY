@@ -22,7 +22,7 @@ class NotificationRepository
         $assignedInvIds = \App\Models\Affectation::where('id_agent', $user->id)
             ->pluck('id_inventaire');
 
-        return Notification::where(function ($q) use ($user, $assignedInvIds) {
+        return Notification::with('inventaire')->where(function ($q) use ($user, $assignedInvIds) {
             // 'nouvel inventaire' - only for assigned inventaires
             $q->where(function ($q2) use ($assignedInvIds) {
                 $q2->where('type', 'nouvel inventaire')
@@ -47,7 +47,7 @@ class NotificationRepository
 
     protected function getAdminNotifications($user)
     {
-        return Notification::where(function ($q) use ($user) {
+        return Notification::with('inventaire')->where(function ($q) use ($user) {
             // Admin sees everything except agent-only notifications (nouvel inventaire)
             // and notes that the admin themselves wrote
             $q->where('type', '!=', 'nouvel inventaire')

@@ -258,10 +258,12 @@ class InventaireController extends Controller
     {
         try {
             $reportUrl = $this->service->terminateInventaire($id, $request->all());
+            $inventaire = Inventaire::find($id); // Fetch the inventory to get the pdf path
             return response()->json([
                 'success' => true,
                 'message' => 'Inventaire terminé.',
-                'report_url' => $reportUrl
+                'report_url' => $reportUrl,
+                'pdf_report_url' => $inventaire->fichier_path
             ]);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);

@@ -130,8 +130,7 @@
                     <th>Date</th>
                     <th>Article</th>
                     <th>Agent (Email)</th>
-                    <th>Ancienne Qte</th>
-                    <th>Nouvelle Qte</th>
+                    <th>Quantité</th>
                     <th>Statut</th>
                 </tr>
             </thead>
@@ -142,7 +141,6 @@
                     <td>{{ $corr['article'] }}</td>
                     <td>{{ $corr['agent'] }}</td>
                     <td>{{ $corr['ancienne_qte'] }}</td>
-                    <td>{{ $corr['nouvelle_qte'] }}</td>
                     <td style="color: {{ $corr['statut'] == 'valide' ? 'green' : ($corr['statut'] == 'refuse' ? 'red' : 'orange') }}">
                         {{ ucfirst($corr['statut']) }}
                     </td>
@@ -180,7 +178,7 @@
     @endif
 
     <div style="margin-top: 50px; text-align: center; color: #888; font-size: 10px;">
-        Document généré automatiquement par STOKLY.
+        Document généré automatiquement par Stockly.
     </div>
 </body>
 </html>

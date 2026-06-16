@@ -436,7 +436,7 @@ class InventaireService
                 'correction_qte' => $c->qte,
                 'motif' => $c->description,
                 'statut' => $c->statut_validation,
-                'date' => $c->created_at->format('d/m/Y H:i')
+                'date' => $c->created_at?->format('d/m/Y H:i') ?? '-'
             ]);
 
         $unknownArticles = $inventaire->lignes->filter(fn($l) => $l->article->statut === 'inconnu' || $l->article->etat === 'inconnu')

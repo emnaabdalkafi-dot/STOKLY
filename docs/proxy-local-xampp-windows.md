@@ -130,7 +130,7 @@ Ouvre dans le navigateur :
 http://www.emna.com
 ```
 
-Tu dois voir l’application STOKLY (contenu prod), avec **`www.emna.com`** toujours affiché dans la barre d’adresse.
+Tu dois voir l’application Stockly (contenu prod), avec **`www.emna.com`** toujours affiché dans la barre d’adresse.
 
 ---
 
@@ -148,7 +148,7 @@ Pour un usage dev rapide, `http://www.emna.com` suffit.
 
 ---
 
-## Comportement avec le projet STOKLY
+## Comportement avec le projet Stockly
 
 | Composant | Comportement |
 |-----------|--------------|

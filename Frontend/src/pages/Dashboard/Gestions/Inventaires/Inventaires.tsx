@@ -311,7 +311,7 @@ const Inventaires: React.FC = () => {
             {loading ? (
   <tbody>
                                 <tr >
-                                    {Array.from({ length: 8}).map((_, index) => (
+                                    {Array.from({ length: 7}).map((_, index) => (
                                         <td key={index} >
                                             <span className={layoutStyles.loadingDots}></span>
                                         </td>

@@ -145,7 +145,17 @@ class _InventoryListPageState extends State<InventoryListPage> {
     if (mounted) {
       setState(() {
         if (result['success'] == true) {
-          _inventories = result['data'] ?? [];
+  List<dynamic> data = result['data'] ?? [];
+
+  if (_selectedStatus.isEmpty) {
+    data = data.where((inv) =>
+      inv['statut'] == 'en cours' ||
+      inv['statut'] == 'en attente'
+    ).toList();
+  }
+
+  _inventories = data;
+}
         } else {
           _errorMessage = result['message'] ?? 'Erreur inconnue';
           _inventories = [];
@@ -172,7 +182,7 @@ switch (statut) {
   case 'en attente':
     return const Color(0xFFF59E0B); 
     
-  case 'termine':
+  case 'cloture':
     return const Color(0xFFEF4444); 
     
   default:

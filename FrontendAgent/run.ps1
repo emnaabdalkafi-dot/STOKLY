@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# STOKLY Agent - Run script for CPH2325
+# Stockly Agent - Run script for CPH2325
 # Usage: .\run.ps1 [release|profile]
 
 param (
@@ -13,5 +13,5 @@ if ($Mode -ne "release" -and $Mode -ne "profile") {
     exit 1
 }
 
-Write-Host "Starting STOKLY Agent in $Mode mode on CPH2325..." -ForegroundColor Green
+Write-Host "Starting Stockly Agent in $Mode mode on CPH2325..." -ForegroundColor Green
 flutter run --$Mode -d CPH2325

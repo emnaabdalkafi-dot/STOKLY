@@ -34,8 +34,8 @@ const ForgotPassword = () => {
             <div className={styles.resetForm}>
                 <div className={styles.authBrand}>
 
-                    <img src={logoImage} alt="STOKLY logo" className={styles.authLogoImage} />
-                    <img src={logoText} alt="STOKLY" className={styles.authLogoText} />
+                    <img src={logoImage} alt="Stockly logo" className={styles.authLogoImage} />
+                    <img src={logoText} alt="Stockly" className={styles.authLogoText} />
                     <p>Entrez votre email pour recevoir un lien de réinitialisation.</p>
                 </div>
 
