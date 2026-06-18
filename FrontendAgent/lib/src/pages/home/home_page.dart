@@ -155,7 +155,6 @@ class _InventoryListPageState extends State<InventoryListPage> {
   }
 
   _inventories = data;
-}
         } else {
           _errorMessage = result['message'] ?? 'Erreur inconnue';
           _inventories = [];

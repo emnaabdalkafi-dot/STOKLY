@@ -13,7 +13,7 @@ void main() {
     runApp(
       ChangeNotifierProvider(
         create: (_) => UserProvider(),
-        child: const StocklyAgentApp(),
+        child: const StoklyAgentApp(),
       ),
     );
   }, (error, stack) {
